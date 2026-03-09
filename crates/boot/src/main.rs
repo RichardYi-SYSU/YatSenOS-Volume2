@@ -6,6 +6,7 @@ extern crate log;
 extern crate alloc;
 
 use core::arch::asm;
+
 use uefi::{Status, entry};
 
 #[entry]

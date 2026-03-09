@@ -1,0 +1,8 @@
+[package]
+name = "rust_exercise"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+colored = "2"
+crossterm = "0.27"

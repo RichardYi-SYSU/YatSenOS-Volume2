@@ -1,5 +1,5 @@
 [workspace]
-members  = ["crates/boot"]
+members  = ["crates/boot", "rust_exercise"]
 resolver = "3"
 
 [profile.release-with-debug]
