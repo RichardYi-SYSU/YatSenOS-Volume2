@@ -1,9 +1,12 @@
-use std::{fs, io, path::Path, thread::sleep};
+use rand::{Rng, RngExt};
+use std::{fs, io, path::Path, process::id, thread::sleep};
+use std::sync::atomic::{AtomicU16,Ordering};
 
 //需要在终端中切换到rust_exercise目录下才能正确读取文件路径
 //现有的crate只有boot，没有颜色输出的crate，考虑添加toml里的依赖
 use colored::*;
 use crossterm::terminal::size; //获取终端的宽度，以实现居中
+
 fn count_down(seconds: u64) {
     for i in (0..=seconds).rev() {
         println!("{}", i);
@@ -84,9 +87,14 @@ impl Shape {
         }
     }
 }
+#[derive(Debug,PartialEq,Eq)]
+struct UniqueId(u16);
 
-struct UniqueId {
-    id: u16,
+impl UniqueId{
+    pub fn new()->Self{
+        static ID:AtomicU16=AtomicU16::new(0);
+        UniqueId(ID.fetch_add(1, Ordering::Relaxed))
+    }
 }
 
 
