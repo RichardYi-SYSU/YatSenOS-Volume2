@@ -3,7 +3,8 @@ name = "rust_exercise"
 version = "0.1.0"
 edition = "2024"
 
+[workspace]
+
 [dependencies]
 colored = "2"
 crossterm = "0.27"
-rand = "0.10.0"
