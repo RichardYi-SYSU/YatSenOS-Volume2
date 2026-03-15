@@ -1,8 +1,12 @@
 use std::{
+    collections::HashSet,
     fs, io,
     path::Path,
-    sync::atomic::{AtomicU16, Ordering},
-    thread::sleep,
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicU16, Ordering},
+    },
+    thread::{self, sleep},
     time::Duration,
 };
 
@@ -149,6 +153,86 @@ impl UniqueId {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+struct UnsafeUniqueId(u16);
+
+impl UnsafeUniqueId {
+    pub fn new() -> Self {
+        static mut NEXT_ID: u16 = 0;
+
+        unsafe {
+            let id = NEXT_ID;
+            // 人为扩大竞争窗口，以便更容易观察到 static mut 在多线程下的问题。
+            thread::yield_now();
+            NEXT_ID = NEXT_ID.wrapping_add(1);
+            UnsafeUniqueId(id)
+        }
+    }
+}
+
+fn collect_atomic_ids(thread_count: usize, ids_per_thread: usize) -> Vec<u16> {
+    let ids = Arc::new(Mutex::new(Vec::with_capacity(
+        thread_count * ids_per_thread,
+    )));
+    let mut handles = Vec::with_capacity(thread_count);
+
+    for _ in 0..thread_count {
+        let ids = Arc::clone(&ids);
+        handles.push(thread::spawn(move || {
+            let mut local_ids = Vec::with_capacity(ids_per_thread);
+            for _ in 0..ids_per_thread {
+                local_ids.push(UniqueId::new().0);
+            }
+
+            ids.lock().unwrap().extend(local_ids);
+        }));
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    Arc::into_inner(ids).unwrap().into_inner().unwrap()
+}
+
+fn collect_unsafe_ids(thread_count: usize, ids_per_thread: usize) -> Vec<u16> {
+    let ids = Arc::new(Mutex::new(Vec::with_capacity(
+        thread_count * ids_per_thread,
+    )));
+    let mut handles = Vec::with_capacity(thread_count);
+
+    for _ in 0..thread_count {
+        let ids = Arc::clone(&ids);
+        handles.push(thread::spawn(move || {
+            let mut local_ids = Vec::with_capacity(ids_per_thread);
+            for _ in 0..ids_per_thread {
+                local_ids.push(UnsafeUniqueId::new().0);
+            }
+
+            ids.lock().unwrap().extend(local_ids);
+        }));
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    Arc::into_inner(ids).unwrap().into_inner().unwrap()
+}
+
+fn count_duplicate_ids(ids: &[u16]) -> usize {
+    let mut seen = HashSet::with_capacity(ids.len());
+    let mut duplicates = 0;
+
+    for &id in ids {
+        if !seen.insert(id) {
+            duplicates += 1;
+        }
+    }
+
+    duplicates
+}
+
 fn main() -> io::Result<()> {
     count_down(5);
 
@@ -202,5 +286,26 @@ mod tests {
         let id1 = UniqueId::new();
         let id2 = UniqueId::new();
         assert_ne!(id1, id2);
+    }
+
+    #[test]
+    fn test_atomic_unique_id_multithreaded() {
+        let ids = collect_atomic_ids(8, 1_000);
+        assert_eq!(count_duplicate_ids(&ids), 0);
+    }
+
+    #[test]
+    fn test_unsafe_unique_id_may_duplicate() {
+        let mut saw_duplicate = false;
+
+        for _ in 0..10 {
+            let ids = collect_unsafe_ids(8, 1_000);
+            if count_duplicate_ids(&ids) > 0 {
+                saw_duplicate = true;
+                break;
+            }
+        }
+
+        assert!(saw_duplicate);
     }
 }
