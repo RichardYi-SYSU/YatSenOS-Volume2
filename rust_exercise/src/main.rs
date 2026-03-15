@@ -1,10 +1,65 @@
-use std::sync::atomic::{AtomicU16, Ordering};
-use std::{fs, io, path::Path, thread::sleep, time::Duration};
+use std::{
+    fs, io,
+    path::Path,
+    sync::atomic::{AtomicU16, Ordering},
+    thread::sleep,
+    time::Duration,
+};
 
 //需要在终端中切换到rust_exercise目录下才能正确读取文件路径
 //现有的crate只有boot，没有颜色输出的crate，考虑添加toml里的依赖
 use colored::*;
 use crossterm::terminal::size;
+use log::{Level, LevelFilter, Metadata, Record, debug, error, info, trace, warn};
+
+struct ColoredLogger;
+
+static LOGGER: ColoredLogger = ColoredLogger;
+
+impl log::Log for ColoredLogger {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        metadata.level() <= Level::Trace
+    }
+
+    fn log(&self, record: &Record) {
+        if !self.enabled(record.metadata()) {
+            return;
+        }
+
+        let level = format_level(record.level());
+
+        match (record.file(), record.line()) {
+            (Some(file), Some(line)) => println!("{} {}:{} {}", level, file, line, record.args()),
+            _ => println!("{} {}", level, record.args()),
+        }
+    }
+
+    fn flush(&self) {}
+}
+
+fn format_level(level: Level) -> ColoredString {
+    match level {
+        Level::Error => "[ERROR]".red().bold(),
+        Level::Warn => "[WARN ]".yellow().bold(),
+        Level::Info => "[INFO ]".green().bold(),
+        Level::Debug => "[DEBUG]".cyan().bold(),
+        Level::Trace => "[TRACE]".bright_black().bold(),
+    }
+}
+
+fn init_logger() {
+    // log 框架只允许全局 logger 初始化一次，因此这里忽略重复初始化的情况。
+    let _ = log::set_logger(&LOGGER);
+    log::set_max_level(LevelFilter::Trace);
+}
+
+fn demo_bonus_logs() {
+    error!("KERNEL PANIC!!!");
+    warn!("I'M A TEAPOT!");
+    info!("Hello from the log crate facade.");
+    debug!("This is a debug message for bonus output.");
+    trace!("This is a trace message for bonus output.");
+}
 
 fn count_down(seconds: u64) {
     for remaining in (1..=seconds).rev() {
@@ -34,7 +89,7 @@ fn file_size(file_path: &str) -> Result<u64, &str> {
     Ok(metadata.len())
 }
 
-//多次输入 
+//多次输入
 fn prompt_file_sizes() -> io::Result<()> {
     println!("Enter file paths to check their sizes (blank line to finish):");
 
@@ -99,6 +154,9 @@ fn main() -> io::Result<()> {
 
     read_and_print("/etc/hosts")?;
     prompt_file_sizes()?;
+
+    init_logger();
+    demo_bonus_logs();
 
     print!("{}", "INFO: ".green());
     println!("{}", "Hello, world!".white());
