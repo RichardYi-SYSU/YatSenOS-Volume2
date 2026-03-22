@@ -37,6 +37,7 @@ pub struct BootInfo {
 
     /// The system table virtual address
     pub system_table: NonNull<core::ffi::c_void>,
+    pub log_level: [u8; 16],
 }
 
 /// Get current page table from CR3

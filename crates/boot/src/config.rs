@@ -18,6 +18,7 @@ pub struct Config<'a> {
     pub cmdline: &'a str,
     /// Load apps into memory, when no fs implemented in kernel
     pub load_apps: bool,
+    pub log_level: &'a str,
 }
 
 const DEFAULT_CONFIG: Config = Config {
@@ -28,6 +29,7 @@ const DEFAULT_CONFIG: Config = Config {
     kernel_path: "\\KERNEL.ELF",
     cmdline: "",
     load_apps: false,
+    log_level: "info",
 };
 
 impl<'a> Config<'a> {
@@ -66,6 +68,7 @@ impl<'a> Config<'a> {
             "kernel_stack_auto_grow" => self.kernel_stack_auto_grow = r10,
             "cmdline" => self.cmdline = value,
             "load_apps" => self.load_apps = r10 != 0,
+            "log_level" => self.log_level = value,
             _ => warn!("undefined config key: {}", key),
         }
     }

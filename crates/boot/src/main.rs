@@ -8,13 +8,21 @@ extern crate alloc;
 
 use alloc::{boxed::Box, vec};
 
-use uefi::{entry, mem::memory_map::MemoryMap, Status};
+use uefi::{Status, entry, mem::memory_map::MemoryMap};
 use x86_64::registers::control::*;
 use ysos_boot::*;
 
 mod config;
 
 const CONFIG_PATH: &str = "\\EFI\\BOOT\\boot.conf";
+
+fn encode_log_level(log_level: &str) -> [u8; 16] {
+    let mut encoded = [0u8; 16];
+    let bytes = log_level.as_bytes();
+    let len = core::cmp::min(bytes.len(), encoded.len().saturating_sub(1));
+    encoded[..len].copy_from_slice(&bytes[..len]);
+    encoded
+}
 
 #[entry]
 fn efi_main() -> Status {
@@ -121,6 +129,7 @@ fn efi_main() -> Status {
         memory_map: mmap.entries().copied().collect(),
         physical_memory_offset: config.physical_memory_offset,
         system_table,
+        log_level: encode_log_level(config.log_level),
     };
 
     // align stack to 8 bytes
