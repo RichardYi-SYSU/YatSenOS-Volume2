@@ -39,7 +39,7 @@ pub fn init(boot_info: &'static BootInfo) {
     }
 
     serial::init(); // init serial output
-    logger::init(); // init logger system
+    logger::init(&boot_info.log_level); // init logger system (之前的lab1加分项实现的内容，被lab2的覆盖掉，故加回来)
     memory::address::init(boot_info);
     memory::gdt::init(); // init gdt
     memory::allocator::init(); // init kernel heap allocator
