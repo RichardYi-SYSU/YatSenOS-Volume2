@@ -122,6 +122,8 @@ impl<const BASE_ADDR: u16> SerialPort<BASE_ADDR> {
                     | ModemControlFlags::OUT2)
                     .bits(),
             );
+            
+            self.interrupt_enable.write(0x01);
         }
     }
 
@@ -132,6 +134,13 @@ impl<const BASE_ADDR: u16> SerialPort<BASE_ADDR> {
             {}
             self.data.write(data);
         }
+    }
+
+    #[inline]
+    pub fn backspace(&mut self) {
+        self.send(0x08);
+        self.send(0x20);
+        self.send(0x08);
     }
 
     pub fn receive(&mut self) -> Option<u8> {
