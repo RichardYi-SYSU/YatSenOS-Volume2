@@ -1,5 +1,5 @@
 mod apic;
-mod clock;
+pub mod clock;
 mod consts;
 mod exceptions;
 mod serial;

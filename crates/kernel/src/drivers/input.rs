@@ -43,6 +43,10 @@ pub fn get_line() -> String {
                 println!();
                 return line;
             }
+            b'\r' => {
+                println!();
+                return line;
+            }
             0x08 | 0x7f => {
                 if line.pop().is_some() {
                     interrupts::without_interrupts(|| {
