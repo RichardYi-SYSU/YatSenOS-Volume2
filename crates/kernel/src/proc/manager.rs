@@ -14,8 +14,10 @@ pub static PROCESS_MANAGER: spin::Once<ProcessManager> = spin::Once::new();
 
 pub fn init(init: Arc<Process>) {
     // FIXME: set init process as Running
+    init.write().resume();
 
     // FIXME: set processor's current pid to init's pid
+    processor::set_pid(init.pid());
 
     PROCESS_MANAGER.call_once(|| ProcessManager::new(init));
 }
