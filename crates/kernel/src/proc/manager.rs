@@ -1,4 +1,5 @@
-use alloc::{collections::*, format};
+use alloc::{collections::*, format, sync::Arc};
+use core::sync::atomic::{AtomicUsize, Ordering};
 
 use hashbrown::HashMap;
 use spin::{Mutex, RwLock};
@@ -69,23 +70,44 @@ impl ProcessManager {
     }
 
     pub fn save_current(&self, context: &ProcessContext) {
-        // FIXME: update current process's tick count
-
-        // FIXME: save current process's context
+        let current = self.current();
+        let mut inner = current.write();
+        // update current process's tick count
+        if inner.status() != ProgramStatus::Dead {
+            inner.tick();
+        }
+        // save current process's context
+        inner.save(context);
     }
 
     pub fn switch_next(&self, context: &mut ProcessContext) -> ProcessId {
+        loop {
+            //fetch the next process from ready queue
+            let pid = self
+                .ready_queue
+                .lock()
+                .pop_front()
+                .expect("No ready process to switch to.");
 
-        // FIXME: fetch the next process from ready queue
+            let Some(next) = self.get_proc(&pid) else {
+                continue;
+            };
 
-        // FIXME: check if the next process is ready,
-        //        continue to fetch if not ready
+            let mut inner = next.write();
+            // check if the next process is ready,
+            // continue to fetch if not ready
+            if !inner.is_ready() {
+                continue;
+            }
+            // restore next process's context
+            inner.restore(context);
+            drop(inner);
+            // update processor's current pid
+            processor::set_pid(pid);
 
-        // FIXME: restore next process's context
-
-        // FIXME: update processor's current pid
-
-        // FIXME: return next process's pid
+            // return next process's pid
+            return pid;
+        }
     }
 
     pub fn spawn_kernel_thread(

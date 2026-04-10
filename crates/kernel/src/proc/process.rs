@@ -1,4 +1,4 @@
-use alloc::{sync::Weak, vec::Vec};
+use alloc::{sync::{Arc, Weak}, vec::Vec};
 
 use spin::*;
 use x86_64::structures::paging::{mapper::MapToError, page::PageRange, *};
@@ -6,7 +6,7 @@ use x86_64::structures::paging::{mapper::MapToError, page::PageRange, *};
 use super::*;
 use crate::memory::*;
 
-#[derive(Clone)]
+
 pub struct Process {
     pid: ProcessId,
     inner: RwLock<ProcessInner>,
@@ -117,7 +117,7 @@ impl ProcessInner {
     }
 
     pub fn clone_page_table(&self) -> PageTableContext {
-        self.proc_vm.as_ref().unwrap()
+        self.proc_vm.as_ref().unwrap().page_table.clone_level_4()
     }
 
     pub fn is_ready(&self) -> bool {
@@ -139,15 +139,22 @@ impl ProcessInner {
     /// Save the process's context
     /// mark the process as ready
     pub(super) fn save(&mut self, context: &ProcessContext) {
-        // FIXME: save the process's context
+        // save the process's context
+        self.context.save(context);
+
+        if self.status != ProgramStatus::Dead {
+            self.pause();
+        }
     }
 
     /// Restore the process's context
     /// mark the process as running
     pub(super) fn restore(&mut self, context: &mut ProcessContext) {
-        // FIXME: restore the process's context
-
-        // FIXME: restore the process's page table
+        // restore the process's context
+        self.context.restore(context);
+        // restore the process's page table
+        self.vm().page_table.load();
+        self.resume();
     }
 
     pub fn parent(&self) -> Option<Arc<Process>> {

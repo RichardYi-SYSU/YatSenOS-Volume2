@@ -5,6 +5,7 @@ mod paging;
 mod pid;
 mod process;
 mod processor;
+mod vm;
 
 use alloc::string::String;
 
@@ -14,9 +15,9 @@ use manager::*;
 pub use paging::PageTableContext;
 pub use pid::ProcessId;
 use process::*;
+pub use vm::ProcessVm;
 use x86_64::{VirtAddr, structures::idt::PageFaultErrorCode};
 
-use crate::memory::PAGE_SIZE;
 pub const KERNEL_PID: ProcessId = ProcessId(1);
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -48,10 +49,17 @@ pub fn init() {
 
 pub fn switch(context: &mut ProcessContext) {
     x86_64::instructions::interrupts::without_interrupts(|| {
-        // FIXME: switch to the next process
-        //      - save current process's context
-        //      - handle ready queue update
-        //      - restore next process's context
+        let pm = get_process_manager();
+        let current = pm.current();
+        let current_pid = current.pid();
+        // save current process's context
+        pm.save_current(context);
+        // handle ready queue update
+        if current.read().status() == ProgramStatus::Ready {
+            pm.push_ready(current_pid);
+        }
+        // restore next process's context
+        pm.switch_next(context);
     });
 }
 
