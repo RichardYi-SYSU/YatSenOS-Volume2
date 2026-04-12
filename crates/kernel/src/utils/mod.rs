@@ -10,6 +10,7 @@ pub mod logger;
 pub use macros::*;
 pub use regs::*;
 
+use alloc::format;
 use crate::proc::*;
 
 pub const fn get_ascii_header() -> &'static str {
@@ -27,10 +28,10 @@ __  __      __  _____            ____  _____
 }
 
 pub fn new_test_thread(id: &str) -> ProcessId {
-    let proc_data = ProcessData::new();
+    let mut proc_data = ProcessData::new();
     proc_data.set_env("id", id);
 
-    spawn_kernel_thread(
+    crate::proc::spawn_kernel_thread(
         utils::func::test,
         format!("#{}_test", id),
         Some(proc_data),
@@ -53,12 +54,11 @@ fn wait(pid: ProcessId) {
         // FIXME: try to get the status of the process
 
         // HINT: it's better to use the exit code
-
-        if /* FIXME: is the process exited? */ {
-            x86_64::instructions::hlt();
-        } else {
+        if exit_code(pid).is_some() {
             break;
         }
+
+        x86_64::instructions::hlt();
     }
 }
 

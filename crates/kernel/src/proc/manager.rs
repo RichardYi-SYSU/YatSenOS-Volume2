@@ -143,6 +143,10 @@ impl ProcessManager {
         false
     }
 
+    pub fn exit_code(&self, pid: ProcessId) -> Option<isize> {
+        self.get_proc(&pid).and_then(|proc| proc.read().exit_code())
+    }
+
     pub fn kill(&self, pid: ProcessId, ret: isize) {
         let proc = self.get_proc(&pid);
 

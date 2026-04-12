@@ -79,7 +79,12 @@ pub fn print_process_list() {
 pub fn env(key: &str) -> Option<String> {
     x86_64::instructions::interrupts::without_interrupts(|| {
         // FIXME: get current process's environment variable
+        get_process_manager().current().read().env(key)
     })
+}
+
+pub fn exit_code(pid: ProcessId) -> Option<isize> {
+    x86_64::instructions::interrupts::without_interrupts(|| get_process_manager().exit_code(pid))
 }
 
 pub fn process_exit(ret: isize) -> ! {
