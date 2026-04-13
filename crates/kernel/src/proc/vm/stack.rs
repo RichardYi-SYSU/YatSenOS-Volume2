@@ -25,7 +25,7 @@ const STACK_INIT_TOP_PAGE: Page<Size4KiB> = Page::containing_address(VirtAddr::n
 // kernel stack
 pub const KSTACK_MAX: u64 = 0xffff_ff02_0000_0000;
 pub const KSTACK_DEF_BOT: u64 = KSTACK_MAX - STACK_MAX_SIZE;
-pub const KSTACK_DEF_PAGE: u64 = /* FIXME: decide on the boot config */;
+pub const KSTACK_DEF_PAGE: u64 = 512;
 pub const KSTACK_DEF_SIZE: u64 = KSTACK_DEF_PAGE * crate::memory::PAGE_SIZE;
 
 pub const KSTACK_INIT_BOT: u64 = KSTACK_MAX - KSTACK_DEF_SIZE;
@@ -79,12 +79,13 @@ impl Stack {
             return false;
         }
 
-        if let Err(m) = self.grow_stack(addr, mapper, alloc) {
-            error!("Grow stack failed: {:?}", m);
-            return false;
+        match self.grow_stack(addr, mapper, alloc) {
+            Ok(handled) => handled,
+            Err(m) => {
+                error!("Grow stack failed: {:?}", m);
+                false
+            }
         }
-
-        true
     }
 
     fn is_on_stack(&self, addr: VirtAddr) -> bool {
@@ -100,12 +101,37 @@ impl Stack {
         addr: VirtAddr,
         mapper: MapperRef,
         alloc: FrameAllocatorRef,
-    ) -> Result<(), MapToError<Size4KiB>> {
+    ) -> Result<bool, MapToError<Size4KiB>> {
         debug_assert!(self.is_on_stack(addr), "Address is not on stack.");
-
         // FIXME: grow stack for page fault
+        let fault_page = Page::<Size4KiB>::containing_address(addr);
+        let old_start = self.range.start;
+        let old_end = self.range.end;
 
-        Ok(())
+        if fault_page >= old_start {
+            warn!(
+                "Invalid stack growth request: fault={:#x}, current range={:#x}..{:#x}",
+                addr,
+                old_start.start_address().as_u64(),
+                old_end.start_address().as_u64()
+            );
+            return Ok(false);
+        }
+
+        let page_count = old_start - fault_page;
+        elf::map_range(fault_page.start_address().as_u64(), page_count, mapper, alloc)?;
+
+        self.range = Page::range(fault_page, old_end);
+        self.usage = self.range.end - self.range.start;
+
+        info!(
+            "Grow stack: new range={:#x}..{:#x}, pages={}",
+            self.range.start.start_address().as_u64(),
+            self.range.end.start_address().as_u64(),
+            self.usage
+        );
+
+        Ok(true)
     }
 
     pub fn memory_usage(&self) -> u64 {

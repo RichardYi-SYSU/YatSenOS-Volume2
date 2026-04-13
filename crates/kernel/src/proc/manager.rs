@@ -142,8 +142,23 @@ impl ProcessManager {
 
     pub fn handle_page_fault(&self, addr: VirtAddr, err_code: PageFaultErrorCode) -> bool {
         // FIXME: handle page fault
+        if err_code.contains(PageFaultErrorCode::PROTECTION_VIOLATION) {
+            warn!(
+                "Reject page fault caused by protection violation: addr={:#x}, err={:?}",
+                addr, err_code
+            );
+            return false;
+        }
 
-        false
+        let current = self.current();
+        let pid = current.pid();
+        let handled = current.write().handle_page_fault(addr);
+
+        if handled {
+            info!("Handled page fault for process #{} at {:#x}", pid, addr);
+        }
+
+        handled
     }
 
     pub fn exit_code(&self, pid: ProcessId) -> Option<isize> {
