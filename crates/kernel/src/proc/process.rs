@@ -167,10 +167,11 @@ impl ProcessInner {
 
     pub fn kill(&mut self, ret: isize) {
         // FIXME: set exit code
-
+        self.exit_code = Some(ret);
         // FIXME: set status to dead
-
+        self.status = ProgramStatus::Dead;
         // FIXME: take and drop unused resources
+        self.proc_data.take();
     }
 }
 

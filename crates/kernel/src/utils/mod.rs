@@ -3,7 +3,6 @@ mod macros;
 #[macro_use]
 mod regs;
 
-pub mod clock;
 pub mod func;
 pub mod logger;
 
@@ -32,7 +31,7 @@ pub fn new_test_thread(id: &str) -> ProcessId {
     proc_data.set_env("id", id);
 
     crate::proc::spawn_kernel_thread(
-        utils::func::test,
+        func::test,
         format!("#{}_test", id),
         Some(proc_data),
     )
@@ -40,7 +39,7 @@ pub fn new_test_thread(id: &str) -> ProcessId {
 
 pub fn new_stack_test_thread() {
     let pid = spawn_kernel_thread(
-        utils::func::stack_test,
+        func::stack_test,
         alloc::string::String::from("stack"),
         None,
     );
