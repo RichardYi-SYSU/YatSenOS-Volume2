@@ -125,12 +125,15 @@ impl ProcessManager {
         let stack_top = proc.alloc_init_stack();
 
         // FIXME: set the stack frame
-
+        proc.write().init_stack_frame(entry, stack_top);
         // FIXME: add to process map
-
+        let pid = proc.pid();
+        info!("Process #{} stack top: {:#x}", pid, stack_top);
+        self.add_proc(pid, proc);
         // FIXME: push to ready queue
-
+        self.push_ready(pid);
         // FIXME: return new process pid
+        pid
     }
 
     pub fn kill_current(&self, ret: isize) {

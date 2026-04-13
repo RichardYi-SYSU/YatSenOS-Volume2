@@ -442,6 +442,7 @@ dependencies = [
  "x86",
  "x86_64",
  "ysos_boot",
+ "ysos_elf",
 ]
 
 [[package]]

@@ -39,7 +39,14 @@ impl ProcessVm {
 
     pub fn init_proc_stack(&mut self, pid: ProcessId) -> VirtAddr {
         // FIXME: calculate the stack for pid
-        // FIXME: calculate the stack for pid
+        let offset = (pid.0 as u64 - 1) * STACK_MAX_SIZE;
+        let stack_bot_addr = STACK_INIT_BOT - offset;
+        let stack_top_addr = VirtAddr::new(STACK_INIT_TOP - offset);
+
+        let mapper = &mut self.page_table.mapper();
+        let alloc = &mut *get_frame_alloc_for_sure();
+        self.stack.init(stack_bot_addr, mapper, alloc);
+
         stack_top_addr
     }
 

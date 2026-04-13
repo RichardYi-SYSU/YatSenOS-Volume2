@@ -9,9 +9,9 @@ pub fn test() -> ! {
     loop {
         // TODO: better way to show more than one process is running?
         count += 1;
-        if count == 1000 {
+        if count == 30000 {
             count = 0;
-            print!("\r{:-6} => Tick!", id);
+            print!("\n{:-6} => Tick!", id);
         }
         unsafe {
             x86_64::instructions::hlt();

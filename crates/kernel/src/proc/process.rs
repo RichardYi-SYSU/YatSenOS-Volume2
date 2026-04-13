@@ -136,6 +136,10 @@ impl ProcessInner {
         self.vm_mut().handle_page_fault(addr)
     }
 
+    pub fn init_stack_frame(&mut self, entry: VirtAddr, stack_top: VirtAddr) {
+        self.context.init_stack_frame(entry, stack_top);
+    }
+
     /// Save the process's context
     /// mark the process as ready
     pub(super) fn save(&mut self, context: &ProcessContext) {
