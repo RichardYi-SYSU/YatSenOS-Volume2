@@ -7,7 +7,7 @@ mod process;
 mod processor;
 mod vm;
 
-use alloc::string::String;
+use alloc::{string::String, vec::Vec};
 
 pub use context::ProcessContext;
 pub use data::ProcessData;
@@ -29,7 +29,7 @@ pub enum ProgramStatus {
 }
 
 /// init process manager
-pub fn init() {
+pub fn init(boot_info: &'static boot::BootInfo) {
     let proc_vm = ProcessVm::new(PageTableContext::new()).init_kernel_vm();
 
     trace!("Init kernel vm: {:#?}", proc_vm);
@@ -42,9 +42,31 @@ pub fn init() {
         Some(proc_vm),
         Some(ProcessData::new()),
     );
-    manager::init(kproc);
+    let app_list = boot_info.loaded_apps.as_ref();
+    manager::init(kproc, app_list);
 
     info!("Process Manager Initialized.");
+}
+
+pub fn list_app() {
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let app_list = get_process_manager().app_list();
+        if app_list.is_none() {
+            println!("[!] No app found in list!");
+            return;
+        }
+
+        let apps = app_list
+            .unwrap()
+            .iter()
+            .map(|app| app.name.as_str())
+            .collect::<Vec<&str>>()
+            .join(", ");
+
+        // TODO: print more information like size, entry point, etc.
+
+        println!("[+] App list: {}", apps);
+    });
 }
 
 pub fn switch(context: &mut ProcessContext) {

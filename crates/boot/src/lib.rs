@@ -2,7 +2,7 @@
 
 use core::ptr::NonNull;
 
-use arrayvec::ArrayVec;
+use arrayvec::{ArrayString, ArrayVec};
 pub use uefi::{
     Status,
     boot::{MemoryAttribute, MemoryDescriptor, MemoryType},
@@ -14,6 +14,7 @@ use x86_64::{
     registers::control::Cr3,
     structures::paging::{OffsetPageTable, PageTable},
 };
+use xmas_elf::ElfFile;
 
 pub mod allocator;
 pub mod config;
@@ -25,7 +26,21 @@ pub use fs::*;
 #[macro_use]
 extern crate log;
 
+pub const APP_MAX_NUM: usize = 16;
+
 pub type BootMemoryMap = ArrayVec<MemoryDescriptor, 256>;
+
+/// App information loaded by bootloader.
+pub struct App {
+    /// The name of app.
+    pub name: ArrayString<16>,
+    /// The ELF file.
+    pub elf: ElfFile<'static>,
+}
+
+pub type AppList = ArrayVec<App, APP_MAX_NUM>;
+pub type AppListRef = Option<&'static AppList>;
+
 /// This structure represents the information that the bootloader passes to the
 /// kernel.
 pub struct BootInfo {
@@ -39,6 +54,9 @@ pub struct BootInfo {
     /// The system table virtual address
     pub system_table: NonNull<core::ffi::c_void>,
     pub log_level: [u8; 16],
+
+    /// Loaded user apps.
+    pub loaded_apps: Option<AppList>,
 }
 
 /// Get current page table from CR3

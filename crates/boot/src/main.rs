@@ -4,9 +4,6 @@
 
 #[macro_use]
 extern crate log;
-extern crate alloc;
-
-use alloc::{boxed::Box, vec};
 
 use uefi::{Status, entry, mem::memory_map::MemoryMap};
 use x86_64::registers::control::*;
@@ -49,9 +46,15 @@ fn efi_main() -> Status {
         xmas_elf::ElfFile::new(elf_buf).expect("Failed to parse kernel ELF")
     };
 
-    unsafe {
-        set_entry(elf.header.pt2.entry_point() as usize);
-    }
+    set_entry(elf.header.pt2.entry_point() as usize);
+
+    let apps = if config.load_apps {
+        info!("Loading apps...");
+        Some(load_apps())
+    } else {
+        info!("Skip loading apps");
+        None
+    };
 
     // 3. Load MemoryMap
     let mmap = uefi::boot::memory_map(MemoryType::LOADER_DATA).expect("Failed to get memory map");
@@ -130,6 +133,7 @@ fn efi_main() -> Status {
         physical_memory_offset: config.physical_memory_offset,
         system_table,
         log_level: encode_log_level(config.log_level),
+        loaded_apps: apps,
     };
 
     // align stack to 8 bytes
