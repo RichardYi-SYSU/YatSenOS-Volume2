@@ -1,6 +1,5 @@
 use alloc::{
     string::{String, ToString},
-    vec,
 };
 
 use crate::*;
@@ -15,13 +14,41 @@ impl Stdin {
     }
 
     pub fn read_line(&self) -> String {
-        // FIXME: allocate string
-        // FIXME: read from input buffer
-        //       - maybe char by char?
-        // FIXME: handle backspace / enter...
-        // FIXME: return string
+        // allocate string
+        // read from input buffer
+        //- maybe char by char?
+        // handle backspace / enter...
+        // return string
+        let mut line = String::new();
+        let mut buf = [0u8; 1];
 
-        String::new()
+        loop {
+            let Some(count) = sys_read(0, &mut buf) else {
+                continue;
+            };
+
+            if count == 0 {
+                core::hint::spin_loop();
+                continue;
+            }
+
+            match buf[0] {
+                b'\n' | b'\r' => {
+                    stdout().write("\n");
+                    return line;
+                }
+                0x08 | 0x7f => {
+                    if line.pop().is_some() {
+                        stdout().write("\x08 \x08");
+                    }
+                }
+                ch => {
+                    line.push(ch as char);
+                    let s = core::str::from_utf8(&buf[..1]).unwrap_or("");
+                    stdout().write(s);
+                }
+            }
+        }
     }
 }
 

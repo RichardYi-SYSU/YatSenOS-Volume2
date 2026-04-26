@@ -47,11 +47,22 @@ pub fn init(boot_info: &'static BootInfo) {
     interrupt::init(); // init interrupts
     memory::init(boot_info); // init memory manager
     proc::init(boot_info); // init process manager
+    memory::user::init(); // init shared user heap after frame allocator and process setup
 
     x86_64::instructions::interrupts::enable();
     info!("Interrupts Enabled.");
 
     info!("YatSenOS initialized.");
+}
+
+pub fn wait(pid: proc::ProcessId) {
+    loop {
+        if proc::still_alive(pid) {
+            x86_64::instructions::hlt();
+        } else {
+            break;
+        }
+    }
 }
 
 pub fn shutdown() -> ! {

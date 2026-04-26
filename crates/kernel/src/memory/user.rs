@@ -1,6 +1,6 @@
+use x86_64::VirtAddr;
 use linked_list_allocator::LockedHeap;
 use x86_64::{
-    VirtAddr,
     structures::paging::{
         FrameAllocator, Mapper, Page, PageTableFlags, Size4KiB, mapper::MapToError,
     },
@@ -26,8 +26,22 @@ pub fn init_user_heap() -> Result<(), MapToError<Size4KiB>> {
     // Get global frame allocator
     let frame_allocator = &mut *super::get_frame_alloc_for_sure();
 
-    // FIXME: use elf::map_range to allocate & map
-    //        frames (R/W/User Access)
+    // use elf::map_range to allocate & map
+    // frames (R/W/User Access)
+    let start_page = Page::containing_address(VirtAddr::new(USER_HEAP_START as u64));
+    let end_page = start_page + USER_HEAP_PAGE as u64;
+    let flags =
+        PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE
+            | PageTableFlags::NO_EXECUTE;
+
+    for page in Page::range(start_page, end_page) {
+        let frame = frame_allocator
+            .allocate_frame()
+            .ok_or(MapToError::FrameAllocationFailed)?;
+        unsafe {
+            mapper.map_to(page, frame, flags, frame_allocator)?.flush();
+        }
+    }
 
     unsafe {
         USER_ALLOCATOR

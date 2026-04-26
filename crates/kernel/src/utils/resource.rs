@@ -1,6 +1,9 @@
 use alloc::string::String;
 
 use hashbrown::HashMap;
+use spin::Mutex;
+
+use crate::drivers::input::try_pop_key;
 
 #[derive(Debug, Clone)]
 pub enum StdIO {
@@ -67,8 +70,16 @@ impl Resource {
         match self {
             Resource::Console(stdio) => match stdio {
                 StdIO::Stdin => {
-                    // FIXME: just read from kernel input buffer
-                    Some(0)
+                    // just read from kernel input buffer
+                    let mut count = 0;
+                    while count < buf.len() {
+                        let Some(key) = try_pop_key() else {
+                            break;
+                        };
+                        buf[count] = key;
+                        count += 1;
+                    }
+                    Some(count)
                 }
                 _ => None,
             },

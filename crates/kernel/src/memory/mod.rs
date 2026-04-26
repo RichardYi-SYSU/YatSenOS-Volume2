@@ -36,7 +36,5 @@ pub fn init(boot_info: &'static boot::BootInfo) {
         ));
     }
 
-    user::init();
-
     info!("Frame Allocator initialized.");
 }
