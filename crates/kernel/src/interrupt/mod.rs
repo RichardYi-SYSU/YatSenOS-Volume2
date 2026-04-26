@@ -3,6 +3,7 @@ pub mod clock;
 mod consts;
 mod exceptions;
 mod serial;
+mod syscall;
 
 use apic::*;
 use consts::Irq;
@@ -19,6 +20,7 @@ lazy_static! {
             // TODO: serial::register_idt(&mut idt);
             clock::register_idt(&mut idt);
             serial::register_idt(&mut idt);
+            syscall::register_idt(&mut idt);
         }
         idt
     };

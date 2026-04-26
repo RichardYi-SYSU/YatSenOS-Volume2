@@ -70,6 +70,14 @@ impl ProcessManager {
             .expect("No current process")
     }
 
+    pub fn read(&self, fd: u8, buf: &mut [u8]) -> isize {
+        self.current().read().read(fd, buf)
+    }
+
+    pub fn write(&self, fd: u8, buf: &[u8]) -> isize {
+        self.current().read().write(fd, buf)
+    }
+
     pub fn save_current(&self, context: &ProcessContext) {
         let current = self.current();
         let mut inner = current.write();
@@ -197,6 +205,12 @@ impl ProcessManager {
 
     pub fn exit_code(&self, pid: ProcessId) -> Option<isize> {
         self.get_proc(&pid).and_then(|proc| proc.read().exit_code())
+    }
+
+    pub fn is_alive(&self, pid: ProcessId) -> bool {
+        self.get_proc(&pid)
+            .map(|proc| proc.read().status() != ProgramStatus::Dead)
+            .unwrap_or(false)
     }
 
     pub fn kill(&self, pid: ProcessId, ret: isize) {

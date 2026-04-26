@@ -485,6 +485,7 @@ dependencies = [
  "xmas-elf",
  "ysos_boot",
  "ysos_elf",
+ "ysos_syscall",
 ]
 
 [[package]]

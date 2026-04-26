@@ -5,9 +5,11 @@ mod regs;
 
 pub mod func;
 pub mod logger;
+mod resource;
 
 pub use macros::*;
 pub use regs::*;
+pub use resource::*;
 
 use alloc::format;
 use crate::proc::*;

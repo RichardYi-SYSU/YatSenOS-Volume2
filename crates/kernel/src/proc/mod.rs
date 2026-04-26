@@ -122,6 +122,18 @@ pub fn print_process_list() {
     })
 }
 
+pub fn read(fd: u8, buf: &mut [u8]) -> isize {
+    x86_64::instructions::interrupts::without_interrupts(|| get_process_manager().read(fd, buf))
+}
+
+pub fn write(fd: u8, buf: &[u8]) -> isize {
+    x86_64::instructions::interrupts::without_interrupts(|| get_process_manager().write(fd, buf))
+}
+
+pub fn get_pid() -> ProcessId {
+    x86_64::instructions::interrupts::without_interrupts(|| get_process_manager().current().pid())
+}
+
 pub fn env(key: &str) -> Option<String> {
     x86_64::instructions::interrupts::without_interrupts(|| {
         // FIXME: get current process's environment variable
@@ -131,6 +143,32 @@ pub fn env(key: &str) -> Option<String> {
 
 pub fn exit_code(pid: ProcessId) -> Option<isize> {
     x86_64::instructions::interrupts::without_interrupts(|| get_process_manager().exit_code(pid))
+}
+
+#[inline]
+pub fn still_alive(pid: ProcessId) -> bool {
+    x86_64::instructions::interrupts::without_interrupts(|| get_process_manager().is_alive(pid))
+}
+
+pub fn wait_pid(pid: ProcessId) -> isize {
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let manager = get_process_manager();
+        if let Some(code) = manager.exit_code(pid) {
+            code
+        } else if manager.is_alive(pid) {
+            -2
+        } else {
+            -1
+        }
+    })
+}
+
+pub fn exit(ret: isize, context: &mut ProcessContext) {
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let manager = get_process_manager();
+        manager.kill_current(ret);
+        manager.switch_next(context);
+    });
 }
 
 pub fn process_exit(ret: isize) -> ! {

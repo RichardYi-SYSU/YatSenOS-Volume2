@@ -18,6 +18,7 @@ linked_list_allocator = { workspace = true }
 log                   = { workspace = true }
 paste                 = { workspace = true }
 spin                  = { workspace = true }
+syscall_def           = { workspace = true }
 uefi                  = { workspace = true }
 volatile              = { workspace = true }
 x86                   = { workspace = true }
