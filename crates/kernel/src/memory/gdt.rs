@@ -86,12 +86,16 @@ lazy_static! {
         let mut gdt = GlobalDescriptorTable::new();
         let code_selector = gdt.append(Descriptor::kernel_code_segment());
         let data_selector = gdt.append(Descriptor::kernel_data_segment());
+        let user_code_selector = gdt.append(Descriptor::user_code_segment());
+        let user_data_selector = gdt.append(Descriptor::user_data_segment());
         let tss_selector = gdt.append(Descriptor::tss_segment(&TSS));
         (
             gdt,
             KernelSelectors {
                 code_selector,
                 data_selector,
+                user_code_selector,
+                user_data_selector,
                 tss_selector,
             },
         )
@@ -102,6 +106,8 @@ lazy_static! {
 pub struct KernelSelectors {
     pub code_selector: SegmentSelector,
     pub data_selector: SegmentSelector,
+    pub user_code_selector: SegmentSelector,
+    pub user_data_selector: SegmentSelector,
     tss_selector: SegmentSelector,
 }
 
@@ -138,5 +144,9 @@ pub fn init() {
 }
 
 pub fn get_selector() -> &'static KernelSelectors {
+    &GDT.1
+}
+
+pub fn get_user_selector() -> &'static KernelSelectors {
     &GDT.1
 }

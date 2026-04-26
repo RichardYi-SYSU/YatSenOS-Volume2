@@ -1,15 +1,10 @@
 use alloc::{collections::*, format, sync::Arc};
-use core::sync::atomic::{AtomicUsize, Ordering};
 
 use hashbrown::HashMap;
 use spin::{Mutex, RwLock};
 
 use super::*;
-use crate::memory::{
-    self, PAGE_SIZE,
-    allocator::{ALLOCATOR, HEAP_SIZE},
-    get_frame_alloc_for_sure,
-};
+use crate::memory::{PAGE_SIZE, get_frame_alloc_for_sure};
 
 pub static PROCESS_MANAGER: spin::Once<ProcessManager> = spin::Once::new();
 
@@ -142,6 +137,39 @@ impl ProcessManager {
         pid
     }
 
+    pub fn spawn(
+        &self,
+        elf: &xmas_elf::ElfFile,
+        name: String,
+        parent: Option<alloc::sync::Weak<Process>>,
+        proc_data: Option<ProcessData>,
+    ) -> ProcessId {
+        let kproc = self.get_proc(&KERNEL_PID).unwrap();
+        let page_table = kproc.read().clone_page_table();
+        let proc_vm = Some(ProcessVm::new(page_table));
+        let proc = Process::new(name, parent, proc_vm, proc_data);
+
+        let mut inner = proc.write();
+        // load elf to process pagetable
+        let code_pages = inner.load_elf(elf);
+        inner.set_code_pages(code_pages);
+        // alloc new stack for process
+        let stack_top = inner.vm_mut().init_proc_stack(proc.pid());
+        // mark process as ready
+        inner.init_stack_frame(VirtAddr::new(elf.header.pt2.entry_point()), stack_top);
+        inner.pause();
+        drop(inner);
+
+        trace!("New {:#?}", &proc);
+
+        let pid = proc.pid();
+        // something like kernel thread
+        self.add_proc(pid, proc);
+        self.push_ready(pid);
+
+        pid
+    }
+
     pub fn kill_current(&self, ret: isize) {
         self.kill(processor::get_pid(), ret);
     }
@@ -192,7 +220,8 @@ impl ProcessManager {
     }
 
     pub fn print_process_list(&self) {
-        let mut output = String::from("  PID | PPID | Process Name |  Ticks  | Status\n");
+        let mut output =
+            String::from("  PID | PPID | Process Name | Pages |  Memory   |  Ticks  | Status\n");
 
         self.processes
             .read()
@@ -200,7 +229,13 @@ impl ProcessManager {
             .filter(|p| p.read().status() != ProgramStatus::Dead)
             .for_each(|p| output += format!("{}\n", p).as_str());
 
-        // TODO: print memory usage of kernel heap
+        let alloc = get_frame_alloc_for_sure();
+        let frames_used = alloc.frames_used();
+        let frames_total = alloc.frames_total();
+        let used = frames_used * PAGE_SIZE as usize;
+        let total = frames_total * PAGE_SIZE as usize;
+        output += &format_usage("Memory", used, total);
+        drop(alloc);
 
         output += format!("Queue  : {:?}\n", self.ready_queue.lock()).as_str();
 
@@ -208,4 +243,19 @@ impl ProcessManager {
 
         print!("{}", output);
     }
+}
+
+fn format_usage(name: &str, used: usize, total: usize) -> String {
+    let (used_float, used_unit) = crate::humanized_size(used as u64);
+    let (total_float, total_unit) = crate::humanized_size(total as u64);
+
+    format!(
+        "{:<6} : {:>6.2} {:>3} / {:>6.2} {:>3} ({:>5.2}%)\n",
+        name,
+        used_float,
+        used_unit,
+        total_float,
+        total_unit,
+        used as f32 / total as f32 * 100.0
+    )
 }

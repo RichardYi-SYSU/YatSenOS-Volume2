@@ -2,7 +2,7 @@ use alloc::format;
 
 use x86_64::{
     VirtAddr,
-    structures::paging::{page::*, *},
+    structures::paging::*,
 };
 
 use crate::{humanized_size, memory::*};
@@ -21,6 +21,9 @@ pub struct ProcessVm {
 
     // stack is pre-process allocated
     pub(super) stack: Stack,
+
+    // bonus 1: loaded user image pages
+    pub(super) code_pages: u64,
 }
 
 impl ProcessVm {
@@ -28,6 +31,7 @@ impl ProcessVm {
         Self {
             page_table,
             stack: Stack::empty(),
+            code_pages: 0,
         }
     }
 
@@ -57,8 +61,29 @@ impl ProcessVm {
         self.stack.handle_page_fault(addr, mapper, alloc)
     }
 
+    pub fn load_elf(&mut self, elf: &xmas_elf::ElfFile) -> u64 {
+        let mapper = &mut self.page_table.mapper();
+        let alloc = &mut *get_frame_alloc_for_sure();
+
+        // load elf to process pagetable
+        self.code_pages = elf::load_elf(
+            elf,
+            *PHYSICAL_OFFSET.get().unwrap(),
+            mapper,
+            alloc,
+            true,
+        )
+        .expect("Failed to load user ELF");
+
+        self.code_pages
+    }
+
     pub(super) fn memory_usage(&self) -> u64 {
-        self.stack.memory_usage()
+        self.stack.memory_usage() + self.code_pages * PAGE_SIZE
+    }
+
+    pub(super) fn memory_pages(&self) -> u64 {
+        self.stack.pages() + self.code_pages
     }
 }
 

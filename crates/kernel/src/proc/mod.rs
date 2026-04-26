@@ -7,7 +7,7 @@ mod process;
 mod processor;
 mod vm;
 
-use alloc::{string::String, vec::Vec};
+use alloc::{string::{String, ToString}, vec::Vec};
 
 pub use context::ProcessContext;
 pub use data::ProcessData;
@@ -17,6 +17,7 @@ pub use pid::ProcessId;
 use process::*;
 pub use vm::ProcessVm;
 use x86_64::{VirtAddr, structures::idt::PageFaultErrorCode};
+use xmas_elf::ElfFile;
 
 pub const KERNEL_PID: ProcessId = ProcessId(1);
 
@@ -67,6 +68,29 @@ pub fn list_app() {
 
         println!("[+] App list: {}", apps);
     });
+}
+
+pub fn spawn(name: &str) -> Option<ProcessId> {
+    let app = x86_64::instructions::interrupts::without_interrupts(|| {
+        let app_list = get_process_manager().app_list()?;
+        app_list.iter().find(|&app| app.name.eq(name))
+    })?;
+
+    elf_spawn(name.to_string(), &app.elf)
+}
+
+pub fn elf_spawn(name: String, elf: &ElfFile) -> Option<ProcessId> {
+    let pid = x86_64::instructions::interrupts::without_interrupts(|| {
+        let manager = get_process_manager();
+        let process_name = name.to_lowercase();
+        let parent = alloc::sync::Arc::downgrade(&manager.current());
+        let pid = manager.spawn(elf, name, Some(parent), None);
+
+        debug!("Spawned process: {}#{}", process_name, pid);
+        pid
+    });
+
+    Some(pid)
 }
 
 pub fn switch(context: &mut ProcessContext) {

@@ -91,6 +91,7 @@ fn efi_main() -> Status {
         config.physical_memory_offset,
         &mut page_table,
         &mut frame_allocator,
+        false,
     )
     .expect("Failed to load kernel ELF");
 
@@ -105,6 +106,7 @@ fn efi_main() -> Status {
         init_stack_pages,
         &mut page_table,
         &mut frame_allocator,
+        false,
     )
     .expect("Failed to map kernel stack");
 

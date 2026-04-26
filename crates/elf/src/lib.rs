@@ -44,6 +44,7 @@ pub fn map_range(
     count: u64,
     page_table: &mut impl Mapper<Size4KiB>,
     frame_allocator: &mut impl FrameAllocator<Size4KiB>,
+    user_access: bool,
 ) -> Result<PageRange, MapToError<Size4KiB>> {
     let range_start = Page::containing_address(VirtAddr::new(addr));
     let range_end = range_start + count;
@@ -55,7 +56,10 @@ pub fn map_range(
     );
 
     // default flags for stack
-    let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
+    let mut flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
+    if user_access {
+        flags |= PageTableFlags::USER_ACCESSIBLE;
+    }
 
     for page in Page::range(range_start, range_end) {
         let frame = frame_allocator
@@ -88,18 +92,28 @@ pub fn load_elf(
     physical_offset: u64,
     page_table: &mut impl Mapper<Size4KiB>,
     frame_allocator: &mut impl FrameAllocator<Size4KiB>,
-) -> Result<(), MapToError<Size4KiB>> {
+    user_access: bool,
+) -> Result<u64, MapToError<Size4KiB>> {
     trace!("Loading ELF file...{:?}", elf.input.as_ptr());
+
+    let mut pages_loaded = 0;
 
     for segment in elf.program_iter() {
         if segment.get_type().unwrap() != program::Type::Load {
             continue;
         }
 
-        load_segment(elf, physical_offset, &segment, page_table, frame_allocator)?
+        pages_loaded += load_segment(
+            elf,
+            physical_offset,
+            &segment,
+            page_table,
+            frame_allocator,
+            user_access,
+        )?;
     }
 
-    Ok(())
+    Ok(pages_loaded)
 }
 
 /// Load & Map ELF segment
@@ -111,7 +125,8 @@ fn load_segment(
     segment: &program::ProgramHeader,
     page_table: &mut impl Mapper<Size4KiB>,
     frame_allocator: &mut impl FrameAllocator<Size4KiB>,
-) -> Result<(), MapToError<Size4KiB>> {
+    user_access: bool,
+) -> Result<u64, MapToError<Size4KiB>> {
     trace!("Loading & mapping segment: {:#x?}", segment);
 
     let mem_size = segment.mem_size();
@@ -130,10 +145,15 @@ fn load_segment(
         page_table_flags |= PageTableFlags::NO_EXECUTE;
     }
 
+    if user_access {
+        page_table_flags |= PageTableFlags::USER_ACCESSIBLE;
+    }
+
     trace!("Segment page table flag: {:?}", page_table_flags);
 
     let start_page = Page::containing_address(virt_start_addr);
     let end_page = Page::containing_address(virt_start_addr + file_size - 1u64);
+    let total_end_page = Page::containing_address(virt_start_addr + mem_size - 1u64);
     let pages = Page::range_inclusive(start_page, end_page);
 
     let data = unsafe { elf.input.as_ptr().add(file_offset as usize) };
@@ -184,7 +204,7 @@ fn load_segment(
         // Map additional frames.
         let start_address = VirtAddr::new(align_up(zero_start.as_u64(), Size4KiB::SIZE));
         let start_page: Page = Page::containing_address(start_address);
-        let end_page = Page::containing_address(zero_end);
+        let end_page = Page::containing_address(zero_end - 1u64);
 
         for page in Page::range_inclusive(start_page, end_page) {
             let frame = frame_allocator
@@ -206,5 +226,5 @@ fn load_segment(
         }
     }
 
-    Ok(())
+    Ok(total_end_page - start_page + 1)
 }

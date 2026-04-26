@@ -1,10 +1,8 @@
 use alloc::{sync::{Arc, Weak}, vec::Vec};
 
 use spin::*;
-use x86_64::structures::paging::{mapper::MapToError, page::PageRange, *};
 
 use super::*;
-use crate::memory::*;
 
 
 pub struct Process {
@@ -140,6 +138,18 @@ impl ProcessInner {
         self.context.init_stack_frame(entry, stack_top);
     }
 
+    pub fn load_elf(&mut self, elf: &xmas_elf::ElfFile) -> u64 {
+        self.vm_mut().load_elf(elf)
+    }
+
+    pub fn memory_usage(&self) -> u64 {
+        self.proc_vm.as_ref().map_or(0, |vm| vm.memory_usage())
+    }
+
+    pub fn memory_pages(&self) -> u64 {
+        self.proc_vm.as_ref().map_or(0, |vm| vm.memory_pages())
+    }
+
     /// Save the process's context
     /// mark the process as ready
     pub(super) fn save(&mut self, context: &ProcessContext) {
@@ -220,13 +230,19 @@ impl core::fmt::Debug for Process {
 
 impl core::fmt::Display for Process {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        use crate::humanized_size_short;
+
         let inner = self.inner.read();
+        let (size, unit) = humanized_size_short(inner.memory_usage());
         write!(
             f,
-            " #{:-3} | #{:-3} | {:12} | {:7} | {:?}",
+            " #{:-3} | #{:-3} | {:12} | {:5} | {:>6.1} {:>3} | {:7} | {:?}",
             self.pid.0,
             inner.parent().map(|p| p.pid.0).unwrap_or(0),
             inner.name,
+            inner.memory_pages(),
+            size,
+            unit,
             inner.ticks_passed,
             inner.status
         )?;

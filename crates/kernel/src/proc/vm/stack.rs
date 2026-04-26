@@ -65,7 +65,7 @@ impl Stack {
     pub fn init(&mut self, bottom_addr: u64, mapper: MapperRef, alloc: FrameAllocatorRef) {
         debug_assert!(self.usage == 0, "Stack is not empty.");
 
-        self.range = elf::map_range(bottom_addr, STACK_DEF_PAGE, mapper, alloc).unwrap();
+        self.range = elf::map_range(bottom_addr, STACK_DEF_PAGE, mapper, alloc, true).unwrap();
         self.usage = STACK_DEF_PAGE;
     }
 
@@ -119,7 +119,7 @@ impl Stack {
         }
 
         let page_count = old_start - fault_page;
-        elf::map_range(fault_page.start_address().as_u64(), page_count, mapper, alloc)?;
+        elf::map_range(fault_page.start_address().as_u64(), page_count, mapper, alloc, true)?;
 
         self.range = Page::range(fault_page, old_end);
         self.usage = self.range.end - self.range.start;
@@ -136,6 +136,10 @@ impl Stack {
 
     pub fn memory_usage(&self) -> u64 {
         self.usage * crate::memory::PAGE_SIZE
+    }
+
+    pub fn pages(&self) -> u64 {
+        self.usage
     }
 }
 

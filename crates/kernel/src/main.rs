@@ -11,6 +11,7 @@ boot::entry_point!(kernel_main);
 pub fn kernel_main(boot_info: &'static boot::BootInfo) -> ! {
     ysos::init(boot_info);
     proc::list_app();
+    proc::print_process_list();
 
     loop {
         x86_64::instructions::hlt();
