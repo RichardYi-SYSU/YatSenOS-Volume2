@@ -9,7 +9,7 @@ extern crate alloc;
 boot::entry_point!(kernel_main);
 
 fn spawn_init() -> proc::ProcessId {
-    proc::spawn("hello").expect("failed to spawn init process")
+    proc::spawn("sh").expect("failed to spawn init process")
 }
 
 pub fn kernel_main(boot_info: &'static boot::BootInfo) -> ! {
