@@ -134,6 +134,19 @@ impl Stack {
         Ok(true)
     }
 
+    pub fn reclaim(&mut self, mapper: MapperRef, alloc: FrameAllocatorRef) {
+        if self.usage == 0 {
+            return;
+        }
+
+        let range = Page::range(self.range.start, self.range.end);
+        elf::unmap_range(range, mapper, alloc).expect("Failed to reclaim process stack");
+
+        let empty = Stack::empty();
+        self.range = empty.range;
+        self.usage = 0;
+    }
+
     pub fn memory_usage(&self) -> u64 {
         self.usage * crate::memory::PAGE_SIZE
     }

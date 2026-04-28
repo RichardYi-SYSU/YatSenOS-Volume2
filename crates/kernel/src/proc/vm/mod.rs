@@ -78,6 +78,13 @@ impl ProcessVm {
         self.code_pages
     }
 
+    pub fn reclaim_stack(&mut self) {
+        let mapper = &mut self.page_table.mapper();
+        let alloc = &mut *get_frame_alloc_for_sure();
+
+        self.stack.reclaim(mapper, alloc);
+    }
+
     pub(super) fn memory_usage(&self) -> u64 {
         self.stack.memory_usage() + self.code_pages * PAGE_SIZE
     }

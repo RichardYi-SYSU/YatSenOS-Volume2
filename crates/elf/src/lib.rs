@@ -84,6 +84,28 @@ pub fn map_range(
     Ok(Page::range(range_start, range_end))
 }
 
+/// Unmap a range of memory
+///
+/// unmap pages and recycle mapped frames
+pub fn unmap_range(
+    range: PageRange<Size4KiB>,
+    page_table: &mut impl Mapper<Size4KiB>,
+    frame_allocator: &mut impl FrameDeallocator<Size4KiB>,
+) -> Result<(), UnmapError> {
+    trace!("Unmapping Page Range: {:?}", range);
+
+    for page in range {
+        let (frame, flush) = page_table.unmap(page)?;
+        flush.flush();
+
+        unsafe {
+            frame_allocator.deallocate_frame(frame);
+        }
+    }
+
+    Ok(())
+}
+
 /// Load & Map ELF file
 ///
 /// load segments in ELF file to new frames and set page table

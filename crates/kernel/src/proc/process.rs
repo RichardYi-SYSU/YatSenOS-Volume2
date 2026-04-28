@@ -176,11 +176,13 @@ impl ProcessInner {
     }
 
     pub fn kill(&mut self, ret: isize) {
-        // FIXME: set exit code
+        if let Some(vm) = self.proc_vm.as_mut() {
+            vm.reclaim_stack();
+        }
+
+        self.proc_vm.take();
         self.exit_code = Some(ret);
-        // FIXME: set status to dead
         self.status = ProgramStatus::Dead;
-        // FIXME: take and drop unused resources
         self.proc_data.take();
     }
 }
