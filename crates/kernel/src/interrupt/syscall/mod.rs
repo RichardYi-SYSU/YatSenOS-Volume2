@@ -68,6 +68,8 @@ pub fn dispatcher(context: &mut ProcessContext) {
         // pid: arg0 as u16 -> status: isize
         Syscall::WaitPid => context.set_rax(wait_pid(ProcessId(args.arg0 as u16)) as usize),
 
+        // None -> current epoch millis
+        Syscall::Time => context.set_rax(sys_time()),
         // None
         Syscall::Stat => list_process(),
         // None

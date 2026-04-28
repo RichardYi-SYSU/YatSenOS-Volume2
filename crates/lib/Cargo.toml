@@ -4,4 +4,5 @@ name              = "yslib"
 version.workspace = true
 
 [dependencies]
+chrono      = { workspace = true }
 syscall_def = { workspace = true }

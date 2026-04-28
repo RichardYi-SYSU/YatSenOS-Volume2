@@ -9,6 +9,7 @@ ahash                 = { workspace = true }
 bit_field             = { workspace = true }
 bitflags              = { workspace = true }
 boot                  = { workspace = true }
+chrono                = { workspace = true }
 crossbeam-queue       = { workspace = true }
 elf                   = { workspace = true }
 hashbrown             = { workspace = true }

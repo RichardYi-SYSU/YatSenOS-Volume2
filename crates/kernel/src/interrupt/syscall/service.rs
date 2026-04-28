@@ -1,5 +1,6 @@
 use core::alloc::Layout;
 
+use chrono::NaiveDate;
 use super::SyscallArgs;
 use crate::{proc, proc::*};
 
@@ -47,6 +48,25 @@ pub fn exit_process(args: &SyscallArgs, context: &mut ProcessContext) {
 pub fn list_process() {
     // list all processes
     proc::print_process_list();
+}
+
+pub fn sys_time() -> usize {
+    let time = uefi::runtime::get_time().expect("Failed to get UEFI time");
+    let naive = NaiveDate::from_ymd_opt(
+        time.year().into(),
+        time.month().into(),
+        time.day().into(),
+    )
+        .expect("Invalid UEFI date")
+        .and_hms_nano_opt(
+            time.hour().into(),
+            time.minute().into(),
+            time.second().into(),
+            time.nanosecond(),
+        )
+        .expect("Invalid UEFI time");
+
+    naive.and_utc().timestamp_millis() as usize
 }
 
 pub fn sys_allocate(args: &SyscallArgs) -> usize {

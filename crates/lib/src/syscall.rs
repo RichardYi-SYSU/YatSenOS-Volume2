@@ -42,6 +42,11 @@ pub fn sys_wait_pid(pid: u16) -> isize {
 }
 
 #[inline(always)]
+pub fn sys_time_millis() -> i64 {
+    syscall!(Syscall::Time) as i64
+}
+
+#[inline(always)]
 pub fn sys_list_app() {
     syscall!(Syscall::ListApp);
 }
