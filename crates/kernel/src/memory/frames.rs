@@ -1,4 +1,4 @@
-use alloc::boxed::Box;
+use alloc::{boxed::Box, vec::Vec};
 
 use boot::{BootMemoryMap, MemoryType};
 use x86_64::{
@@ -20,6 +20,7 @@ pub struct BootInfoFrameAllocator {
     size: usize,
     used: usize,
     frames: BootInfoFrameIter,
+    recycled: Vec<PhysFrame>,
 }
 
 impl BootInfoFrameAllocator {
@@ -33,6 +34,7 @@ impl BootInfoFrameAllocator {
             size,
             frames: create_frame_iter(memory_map),
             used: 0,
+            recycled: Vec::new(),
         }
     }
 
@@ -47,14 +49,22 @@ impl BootInfoFrameAllocator {
 
 unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame> {
-        self.used += 1;
-        self.frames.next()
+        let frame = self.recycled.pop().or_else(|| self.frames.next());
+
+        if frame.is_some() {
+            self.used += 1;
+        }
+
+        frame
     }
 }
 
 impl FrameDeallocator<Size4KiB> for BootInfoFrameAllocator {
-    unsafe fn deallocate_frame(&mut self, _frame: PhysFrame) {
-        // TODO: deallocate frame (not for lab 2)
+    unsafe fn deallocate_frame(&mut self, frame: PhysFrame) {
+        self.recycled.push(frame);
+        if self.used > 0 {
+            self.used -= 1;
+        }
     }
 }
 
