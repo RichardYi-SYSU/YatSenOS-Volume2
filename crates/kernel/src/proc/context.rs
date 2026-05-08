@@ -26,6 +26,26 @@ impl ProcessContext {
     }
 
     #[inline]
+    pub fn set_stack_pointer(&mut self, value: VirtAddr) {
+        self.value.stack_frame.stack_pointer = value;
+    }
+
+    #[inline]
+    pub fn stack_pointer(&self) -> VirtAddr {
+        self.value.stack_frame.stack_pointer
+    }
+
+    #[inline]
+    pub fn move_stack_down(&mut self, offset: u64) {
+        self.value.stack_frame.stack_pointer -= offset;
+
+        let offset = offset as usize;
+        if self.value.regs.rbp >= offset {
+            self.value.regs.rbp -= offset;
+        }
+    }
+
+    #[inline]
     pub fn save(&mut self, context: &ProcessContext) {
         self.value = context.value;
     }

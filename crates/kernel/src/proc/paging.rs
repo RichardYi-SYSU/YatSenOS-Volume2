@@ -55,6 +55,16 @@ impl PageTableContext {
         }
     }
 
+    pub fn using_count(&self) -> usize {
+        Arc::strong_count(&self.reg)
+    }
+
+    pub fn fork(&self) -> Self {
+        Self {
+            reg: self.reg.clone(),
+        }
+    }
+
     /// Load the page table to Cr3 register.
     pub fn load(&self) {
         unsafe { Cr3::write(self.reg.addr, self.reg.flags) }
@@ -78,6 +88,7 @@ impl core::fmt::Debug for PageTableContext {
         f.debug_struct("PageTable")
             .field("addr", &self.reg.addr)
             .field("flags", &self.reg.flags)
+            .field("refs", &self.using_count())
             .finish()
     }
 }

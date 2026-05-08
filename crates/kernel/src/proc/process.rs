@@ -1,9 +1,11 @@
-use alloc::{sync::{Arc, Weak}, vec::Vec};
+use alloc::{
+    sync::{Arc, Weak},
+    vec::Vec,
+};
 
 use spin::*;
 
 use super::*;
-
 
 pub struct Process {
     pid: ProcessId,
@@ -86,6 +88,22 @@ impl Process {
 
     pub fn alloc_init_stack(&self) -> VirtAddr {
         self.write().vm_mut().init_proc_stack(self.pid)
+    }
+
+    pub fn fork(self: &Arc<Self>) -> Arc<Self> {
+        let child_pid = ProcessId::new();
+        let mut inner = self.inner.write();
+        let child_inner = inner.fork(Arc::downgrade(self));
+
+        let child = Arc::new(Self {
+            pid: child_pid,
+            inner: RwLock::new(child_inner),
+        });
+
+        inner.context.set_rax(child_pid.0 as usize);
+        inner.children.push(child.clone());
+
+        child
     }
 }
 
@@ -184,6 +202,31 @@ impl ProcessInner {
         self.exit_code = Some(ret);
         self.status = ProgramStatus::Dead;
         self.proc_data.take();
+    }
+
+    pub fn fork(&mut self, parent: Weak<Process>) -> ProcessInner {
+        let stack_offset_count = self.children.len() as u64 + 1;
+        let (proc_vm, stack_offset) = self
+            .proc_vm
+            .as_ref()
+            .map(|vm| vm.fork(stack_offset_count))
+            .expect("Cannot fork a process without VM.");
+
+        let mut context = self.context;
+        context.move_stack_down(stack_offset);
+        context.set_rax(0);
+
+        ProcessInner {
+            name: self.name.clone(),
+            parent: Some(parent),
+            children: Vec::new(),
+            ticks_passed: 0,
+            status: ProgramStatus::Ready,
+            context,
+            exit_code: None,
+            proc_data: self.proc_data.clone(),
+            proc_vm: Some(proc_vm),
+        }
     }
 }
 

@@ -7,7 +7,10 @@ mod process;
 mod processor;
 mod vm;
 
-use alloc::{string::{String, ToString}, vec::Vec};
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 
 pub use context::ProcessContext;
 pub use data::ProcessData;
@@ -91,6 +94,20 @@ pub fn elf_spawn(name: String, elf: &ElfFile) -> Option<ProcessId> {
     });
 
     Some(pid)
+}
+
+pub fn fork(context: &mut ProcessContext) {
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let manager = get_process_manager();
+        let parent = manager.current().pid();
+
+        manager.save_current(context);
+        let child = manager.fork();
+
+        manager.push_ready(parent);
+        manager.push_ready(child);
+        manager.switch_next(context);
+    });
 }
 
 pub fn switch(context: &mut ProcessContext) {

@@ -178,6 +178,17 @@ impl ProcessManager {
         pid
     }
 
+    pub fn fork(&self) -> ProcessId {
+        let parent = self.current();
+        let child = parent.fork();
+        let pid = child.pid();
+
+        trace!("Forked process: parent #{} -> child #{}", parent.pid(), pid);
+        self.add_proc(pid, child);
+
+        pid
+    }
+
     pub fn kill_current(&self, ret: isize) {
         self.kill(processor::get_pid(), ret);
     }

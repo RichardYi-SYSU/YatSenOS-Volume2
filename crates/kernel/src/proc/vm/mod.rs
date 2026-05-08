@@ -1,9 +1,6 @@
 use alloc::format;
 
-use x86_64::{
-    VirtAddr,
-    structures::paging::*,
-};
+use x86_64::{VirtAddr, structures::paging::*};
 
 use crate::{humanized_size, memory::*};
 
@@ -66,14 +63,8 @@ impl ProcessVm {
         let alloc = &mut *get_frame_alloc_for_sure();
 
         // load elf to process pagetable
-        self.code_pages = elf::load_elf(
-            elf,
-            *PHYSICAL_OFFSET.get().unwrap(),
-            mapper,
-            alloc,
-            true,
-        )
-        .expect("Failed to load user ELF");
+        self.code_pages = elf::load_elf(elf, *PHYSICAL_OFFSET.get().unwrap(), mapper, alloc, true)
+            .expect("Failed to load user ELF");
 
         self.code_pages
     }
@@ -83,6 +74,22 @@ impl ProcessVm {
         let alloc = &mut *get_frame_alloc_for_sure();
 
         self.stack.reclaim(mapper, alloc);
+    }
+
+    pub fn fork(&self, stack_offset_count: u64) -> (Self, u64) {
+        let page_table = self.page_table.fork();
+        let mapper = &mut page_table.mapper();
+        let alloc = &mut *get_frame_alloc_for_sure();
+        let (stack, stack_offset) = self.stack.fork(mapper, alloc, stack_offset_count);
+
+        (
+            Self {
+                page_table,
+                stack,
+                code_pages: self.code_pages,
+            },
+            stack_offset,
+        )
     }
 
     pub(super) fn memory_usage(&self) -> u64 {

@@ -1,3 +1,5 @@
+use core::ptr::copy_nonoverlapping;
+
 use x86_64::{
     VirtAddr,
     structures::paging::{Page, mapper::MapToError, page::*},
@@ -119,7 +121,13 @@ impl Stack {
         }
 
         let page_count = old_start - fault_page;
-        elf::map_range(fault_page.start_address().as_u64(), page_count, mapper, alloc, true)?;
+        elf::map_range(
+            fault_page.start_address().as_u64(),
+            page_count,
+            mapper,
+            alloc,
+            true,
+        )?;
 
         self.range = Page::range(fault_page, old_end);
         self.usage = self.range.end - self.range.start;
@@ -145,6 +153,51 @@ impl Stack {
         let empty = Stack::empty();
         self.range = empty.range;
         self.usage = 0;
+    }
+
+    pub fn fork(
+        &self,
+        mapper: MapperRef,
+        alloc: FrameAllocatorRef,
+        stack_offset_count: u64,
+    ) -> (Self, u64) {
+        debug_assert!(self.usage > 0, "Cannot fork an empty stack.");
+
+        let parent_start = self.range.start.start_address().as_u64();
+        let mut child_start = parent_start - stack_offset_count * STACK_MAX_SIZE;
+        let range = loop {
+            match elf::map_range(child_start, self.usage, mapper, alloc, true) {
+                Ok(range) => break range,
+                Err(err) => {
+                    trace!(
+                        "Map forked stack to {:#x} failed: {:?}; retry lower.",
+                        child_start, err
+                    );
+                    child_start -= STACK_MAX_SIZE;
+                }
+            }
+        };
+
+        self.clone_range(parent_start, child_start, self.usage);
+
+        (
+            Self {
+                range,
+                usage: self.usage,
+            },
+            parent_start - child_start,
+        )
+    }
+
+    fn clone_range(&self, src_addr: u64, dest_addr: u64, pages: u64) {
+        trace!("Clone stack range: {:#x} -> {:#x}", src_addr, dest_addr);
+        unsafe {
+            copy_nonoverlapping::<u64>(
+                src_addr as *const u64,
+                dest_addr as *mut u64,
+                (pages * crate::memory::PAGE_SIZE / 8) as usize,
+            );
+        }
     }
 
     pub fn memory_usage(&self) -> u64 {

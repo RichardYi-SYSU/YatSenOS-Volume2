@@ -72,6 +72,11 @@ pub fn sys_spawn(path: &str) -> u16 {
 }
 
 #[inline(always)]
+pub fn sys_fork() -> u16 {
+    syscall!(Syscall::Fork) as u16
+}
+
+#[inline(always)]
 pub fn sys_get_pid() -> u16 {
     syscall!(Syscall::GetPid) as u16
 }
