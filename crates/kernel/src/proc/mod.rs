@@ -167,15 +167,20 @@ pub fn still_alive(pid: ProcessId) -> bool {
     x86_64::instructions::interrupts::without_interrupts(|| get_process_manager().is_alive(pid))
 }
 
-pub fn wait_pid(pid: ProcessId) -> isize {
+pub fn wait_pid(pid: ProcessId, context: &mut ProcessContext) {
     x86_64::instructions::interrupts::without_interrupts(|| {
         let manager = get_process_manager();
+        let current = manager.current().pid();
+
         if let Some(code) = manager.exit_code(pid) {
-            code
+            context.set_rax(code as usize);
+        } else if pid == current || !manager.is_alive(pid) {
+            context.set_rax((-1isize) as usize);
         } else if manager.is_alive(pid) {
-            -2
-        } else {
-            -1
+            manager.wait_pid(pid);
+            manager.save_current(context);
+            manager.block(current);
+            manager.switch_next(context);
         }
     })
 }

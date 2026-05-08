@@ -32,13 +32,7 @@ pub fn sys_read(fd: u8, buf: &mut [u8]) -> Option<usize> {
 
 #[inline(always)]
 pub fn sys_wait_pid(pid: u16) -> isize {
-    loop {
-        let ret = syscall!(Syscall::WaitPid, pid as u64) as isize;
-        if ret != -2 {
-            return ret;
-        }
-        core::hint::spin_loop();
-    }
+    syscall!(Syscall::WaitPid, pid as u64) as isize
 }
 
 #[inline(always)]

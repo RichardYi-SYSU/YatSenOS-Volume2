@@ -27,6 +27,7 @@ pub fn get_process_manager() -> &'static ProcessManager {
 pub struct ProcessManager {
     processes: RwLock<HashMap<ProcessId, Arc<Process>, ahash::RandomState>>,
     ready_queue: Mutex<VecDeque<ProcessId>>,
+    wait_queue: Mutex<HashMap<ProcessId, BTreeSet<ProcessId>, ahash::RandomState>>,
     app_list: boot::AppListRef,
 }
 
@@ -34,6 +35,7 @@ impl ProcessManager {
     pub fn new(init: Arc<Process>, app_list: boot::AppListRef) -> Self {
         let mut processes = HashMap::default();
         let ready_queue = VecDeque::new();
+        let wait_queue = HashMap::default();
         let pid = init.pid();
 
         trace!("Init {:#?}", init);
@@ -42,6 +44,7 @@ impl ProcessManager {
         Self {
             processes: RwLock::new(processes),
             ready_queue: Mutex::new(ready_queue),
+            wait_queue: Mutex::new(wait_queue),
             app_list,
         }
     }
@@ -224,6 +227,36 @@ impl ProcessManager {
             .unwrap_or(false)
     }
 
+    pub fn wait_pid(&self, pid: ProcessId) {
+        let waiter = processor::get_pid();
+        self.wait_queue
+            .lock()
+            .entry(pid)
+            .or_default()
+            .insert(waiter);
+    }
+
+    pub fn block(&self, pid: ProcessId) {
+        if let Some(proc) = self.get_proc(&pid) {
+            proc.write().block();
+        }
+    }
+
+    pub fn wake_up(&self, pid: ProcessId, ret: Option<isize>) {
+        if let Some(proc) = self.get_proc(&pid) {
+            let mut inner = proc.write();
+
+            if let Some(ret) = ret {
+                inner.set_return_value(ret);
+            }
+
+            inner.pause();
+            drop(inner);
+
+            self.push_ready(pid);
+        }
+    }
+
     pub fn kill(&self, pid: ProcessId, ret: isize) {
         let proc = self.get_proc(&pid);
 
@@ -242,6 +275,12 @@ impl ProcessManager {
         trace!("Kill {:#?}", &proc);
 
         proc.kill(ret);
+
+        if let Some(waiters) = self.wait_queue.lock().remove(&pid) {
+            for waiter in waiters {
+                self.wake_up(waiter, Some(ret));
+            }
+        }
     }
 
     pub fn print_process_list(&self) {
