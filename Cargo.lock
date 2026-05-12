@@ -536,6 +536,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ysos_mq"
+version = "0.4.0"
+dependencies = [
+ "yslib",
+]
+
+[[package]]
 name = "ysos_sh"
 version = "0.4.0"
 dependencies = [
