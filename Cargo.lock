@@ -480,6 +480,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ysos_dinner"
+version = "0.4.0"
+dependencies = [
+ "yslib",
+]
+
+[[package]]
 name = "ysos_elf"
 version = "0.4.0"
 dependencies = [
