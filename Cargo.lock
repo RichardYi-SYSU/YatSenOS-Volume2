@@ -487,6 +487,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ysos_dinner_alt"
+version = "0.4.0"
+dependencies = [
+ "yslib",
+]
+
+[[package]]
 name = "ysos_elf"
 version = "0.4.0"
 dependencies = [
@@ -497,6 +504,13 @@ dependencies = [
 
 [[package]]
 name = "ysos_fact"
+version = "0.4.0"
+dependencies = [
+ "yslib",
+]
+
+[[package]]
+name = "ysos_fish"
 version = "0.4.0"
 dependencies = [
  "yslib",
