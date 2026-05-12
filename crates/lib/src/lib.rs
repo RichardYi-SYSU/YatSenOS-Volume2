@@ -14,12 +14,14 @@ pub mod allocator;
 pub mod time;
 pub extern crate alloc;
 
+pub mod sync;
 mod syscall;
 
 pub use alloc::*;
 use core::fmt::*;
 
 pub use io::*;
+pub use sync::*;
 pub use syscall::*;
 pub use time::*;
 

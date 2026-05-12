@@ -69,6 +69,8 @@ pub fn dispatcher(context: &mut ProcessContext) {
         Syscall::Exit => exit_process(&args, context),
         // pid: arg0 as u16 -> status: isize
         Syscall::WaitPid => wait_pid(ProcessId(args.arg0 as u16), context),
+        // op: arg0 as u8, key: arg1 as u32, val: arg2 as usize
+        Syscall::Sem => sys_sem(&args, context),
 
         // None -> current epoch millis
         Syscall::Time => context.set_rax(sys_time()),

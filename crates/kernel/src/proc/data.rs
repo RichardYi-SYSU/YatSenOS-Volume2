@@ -1,8 +1,10 @@
 use alloc::{string::String, sync::Arc};
 use core::sync::atomic::{AtomicU64, Ordering};
+
 use hashbrown::HashMap;
 use spin::RwLock;
 
+use super::{ProcessId, SemaphoreResult, SemaphoreSet};
 use crate::utils::ResourceSet;
 
 #[derive(Debug, Clone)]
@@ -10,6 +12,7 @@ pub struct ProcessData {
     // shared data
     pub(super) env: Arc<RwLock<HashMap<String, String, ahash::RandomState>>>,
     pub(super) resources: Arc<RwLock<ResourceSet>>,
+    pub(super) semaphores: Arc<RwLock<SemaphoreSet>>,
     // bonus 1: track user ELF image pages
     pub(super) code_pages: Arc<AtomicU64>,
 }
@@ -25,6 +28,7 @@ impl ProcessData {
         Self {
             env: Arc::new(RwLock::new(HashMap::default())),
             resources: Arc::new(RwLock::new(ResourceSet::default())),
+            semaphores: Arc::new(RwLock::new(SemaphoreSet::default())),
             code_pages: Arc::new(AtomicU64::new(0)),
         }
     }
@@ -43,6 +47,22 @@ impl ProcessData {
 
     pub fn write(&self, fd: u8, buf: &[u8]) -> isize {
         self.resources.read().write(fd, buf)
+    }
+
+    pub fn sem_new(&mut self, key: u32, value: usize) -> bool {
+        self.semaphores.write().insert(key, value)
+    }
+
+    pub fn sem_remove(&mut self, key: u32) -> bool {
+        self.semaphores.write().remove(key)
+    }
+
+    pub fn sem_wait(&self, key: u32, pid: ProcessId) -> SemaphoreResult {
+        self.semaphores.read().wait(key, pid)
+    }
+
+    pub fn sem_signal(&self, key: u32) -> SemaphoreResult {
+        self.semaphores.read().signal(key)
     }
 
     pub fn code_pages(&self) -> u64 {

@@ -5,6 +5,7 @@ mod paging;
 mod pid;
 mod process;
 mod processor;
+mod sync;
 mod vm;
 
 use alloc::{
@@ -14,10 +15,11 @@ use alloc::{
 
 pub use context::ProcessContext;
 pub use data::ProcessData;
-use manager::*;
+pub use manager::*;
 pub use paging::PageTableContext;
 pub use pid::ProcessId;
 use process::*;
+pub use sync::{SemaphoreResult, SemaphoreSet};
 pub use vm::ProcessVm;
 use x86_64::{VirtAddr, structures::idt::PageFaultErrorCode};
 use xmas_elf::ElfFile;

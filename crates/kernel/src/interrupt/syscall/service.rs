@@ -1,6 +1,7 @@
 use core::alloc::Layout;
 
 use chrono::NaiveDate;
+
 use super::SyscallArgs;
 use crate::{proc, proc::*};
 
@@ -50,13 +51,74 @@ pub fn list_process() {
     proc::print_process_list();
 }
 
+pub fn new_sem(key: u32, value: usize) -> usize {
+    let inserted = proc::get_process_manager()
+        .current()
+        .write()
+        .sem_new(key, value);
+
+    if inserted { 0 } else { 1 }
+}
+
+pub fn remove_sem(key: u32) -> usize {
+    let removed = proc::get_process_manager()
+        .current()
+        .write()
+        .sem_remove(key);
+
+    if removed { 0 } else { 1 }
+}
+
+pub fn sem_wait(key: u32, context: &mut ProcessContext) {
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let manager = proc::get_process_manager();
+        let pid = proc::get_pid();
+        let ret = manager.current().read().sem_wait(key, pid);
+
+        match ret {
+            SemaphoreResult::Ok => context.set_rax(0),
+            SemaphoreResult::NotExist => context.set_rax(1),
+            SemaphoreResult::Block(pid) => {
+                context.set_rax(0);
+                manager.save_current(context);
+                manager.block(pid);
+                manager.switch_next(context);
+            }
+            SemaphoreResult::WakeUp(_) => unreachable!(),
+        }
+    });
+}
+
+pub fn sem_signal(key: u32, context: &mut ProcessContext) {
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let manager = proc::get_process_manager();
+        let ret = manager.current().read().sem_signal(key);
+
+        match ret {
+            SemaphoreResult::Ok => context.set_rax(0),
+            SemaphoreResult::NotExist => context.set_rax(1),
+            SemaphoreResult::WakeUp(pid) => {
+                manager.wake_up(pid, None);
+                context.set_rax(0);
+            }
+            SemaphoreResult::Block(_) => unreachable!(),
+        }
+    });
+}
+
+pub fn sys_sem(args: &SyscallArgs, context: &mut ProcessContext) {
+    match args.arg0 {
+        0 => context.set_rax(new_sem(args.arg1 as u32, args.arg2)),
+        1 => context.set_rax(remove_sem(args.arg1 as u32)),
+        2 => sem_signal(args.arg1 as u32, context),
+        3 => sem_wait(args.arg1 as u32, context),
+        _ => context.set_rax(usize::MAX),
+    }
+}
+
 pub fn sys_time() -> usize {
     let time = uefi::runtime::get_time().expect("Failed to get UEFI time");
-    let naive = NaiveDate::from_ymd_opt(
-        time.year().into(),
-        time.month().into(),
-        time.day().into(),
-    )
+    let naive = NaiveDate::from_ymd_opt(time.year().into(), time.month().into(), time.day().into())
         .expect("Invalid UEFI date")
         .and_hms_nano_opt(
             time.hour().into(),
