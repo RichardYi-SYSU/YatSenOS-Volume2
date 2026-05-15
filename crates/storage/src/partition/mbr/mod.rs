@@ -45,7 +45,7 @@ where
             partitions.push(MbrPartition::parse(entry));
 
             if partitions[i].is_active() {
-                trace!("Partition {}: {:#?}", i, partitions[i]);
+                info!("Partition {}: {:#?}", i, partitions[i]);
             }
         }
 
