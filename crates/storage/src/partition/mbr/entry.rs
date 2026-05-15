@@ -31,6 +31,27 @@ impl MbrPartition {
     // an example of how to define a field
     // move your mouse on the `define_field!` to see the docs
     define_field!(u8, 0x00, status);
+    define_field!(u8, 0x01, begin_head);
+    define_field!(u8, 0x04, partition_type);
+    define_field!(u8, 0x05, end_head);
+    define_field!(u32, 0x08, begin_lba);
+    define_field!(u32, 0x0C, total_lba);
+
+    pub fn begin_sector(&self) -> u8 {
+        self.data[0x02] & 0x3F
+    }
+
+    pub fn begin_cylinder(&self) -> u16 {
+        (((self.data[0x02] & 0xC0) as u16) << 2) | self.data[0x03] as u16
+    }
+
+    pub fn end_sector(&self) -> u8 {
+        self.data[0x06] & 0x3F
+    }
+
+    pub fn end_cylinder(&self) -> u16 {
+        (((self.data[0x06] & 0xC0) as u16) << 2) | self.data[0x07] as u16
+    }
 
     pub fn is_active(&self) -> bool {
         self.status() == 0x80

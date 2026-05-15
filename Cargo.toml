@@ -6,6 +6,7 @@ members = [
   "crates/elf",
   "crates/kernel",
   "crates/lib",
+  "crates/storage",
   "crates/syscall",
 ]
 resolver = "3"
@@ -55,6 +56,7 @@ xmas-elf              = "0.10"
 boot        = { path = "crates/boot", default-features = false, package = "ysos_boot" }
 elf         = { path = "crates/elf", package = "ysos_elf" }
 lib         = { path = "crates/lib", package = "yslib" }
+storage     = { path = "crates/storage", package = "ysos_storage" }
 syscall_def = { path = "crates/syscall", package = "ysos_syscall" }
 
 [workspace.dependencies.ahash]
