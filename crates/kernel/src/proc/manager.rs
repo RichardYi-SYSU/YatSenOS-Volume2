@@ -81,6 +81,14 @@ impl ProcessManager {
         self.current().read().write(fd, buf)
     }
 
+    pub fn open(&self, resource: crate::utils::Resource) -> u8 {
+        self.current().read().open(resource)
+    }
+
+    pub fn close(&self, fd: u8) -> bool {
+        self.current().read().close(fd)
+    }
+
     pub fn save_current(&self, context: &ProcessContext) {
         let current = self.current();
         let mut inner = current.write();

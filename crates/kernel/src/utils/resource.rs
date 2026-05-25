@@ -2,6 +2,7 @@ use alloc::string::String;
 
 use hashbrown::HashMap;
 use spin::Mutex;
+use storage::FileHandle;
 
 use crate::drivers::input::try_pop_key;
 
@@ -62,6 +63,7 @@ impl ResourceSet {
 #[derive(Debug)]
 pub enum Resource {
     Console(StdIO),
+    File(FileHandle),
     Null,
 }
 
@@ -83,6 +85,7 @@ impl Resource {
                 }
                 _ => None,
             },
+            Resource::File(file) => file.read(buf).ok(),
             Resource::Null => Some(0),
         }
     }
@@ -100,6 +103,7 @@ impl Resource {
                     Some(buf.len())
                 }
             },
+            Resource::File(_) => None,
             Resource::Null => Some(buf.len()),
         }
     }

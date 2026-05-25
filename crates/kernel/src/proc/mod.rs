@@ -149,6 +149,14 @@ pub fn write(fd: u8, buf: &[u8]) -> isize {
     x86_64::instructions::interrupts::without_interrupts(|| get_process_manager().write(fd, buf))
 }
 
+pub fn open(resource: crate::utils::Resource) -> u8 {
+    x86_64::instructions::interrupts::without_interrupts(|| get_process_manager().open(resource))
+}
+
+pub fn close(fd: u8) -> bool {
+    x86_64::instructions::interrupts::without_interrupts(|| get_process_manager().close(fd))
+}
+
 pub fn get_pid() -> ProcessId {
     x86_64::instructions::interrupts::without_interrupts(|| get_process_manager().current().pid())
 }

@@ -57,6 +57,10 @@ pub fn dispatcher(context: &mut ProcessContext) {
         Syscall::Read => context.set_rax(sys_read(&args)),
         // fd: arg0 as u8, buf: &[u8] (ptr: arg1 as *const u8, len: arg2)
         Syscall::Write => context.set_rax(sys_write(&args)),
+        // path: &str (ptr: arg0 as *const u8, len: arg1) -> fd: u8
+        Syscall::Open => context.set_rax(sys_open(&args)),
+        // fd: arg0 as u8
+        Syscall::Close => context.set_rax(sys_close(&args)),
 
         // None -> pid: u16
         Syscall::GetPid => context.set_rax(u16::from(get_pid()) as usize),
@@ -78,6 +82,8 @@ pub fn dispatcher(context: &mut ProcessContext) {
         Syscall::Stat => list_process(),
         // None
         Syscall::ListApp => list_app(),
+        // path: &str (ptr: arg0 as *const u8, len: arg1)
+        Syscall::ListDir => context.set_rax(sys_list_dir(&args)),
 
         // ----------------------------------------------------
         // NOTE: following syscall examples are implemented

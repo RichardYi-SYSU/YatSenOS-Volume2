@@ -5,7 +5,7 @@ use hashbrown::HashMap;
 use spin::RwLock;
 
 use super::{ProcessId, SemaphoreResult, SemaphoreSet};
-use crate::utils::ResourceSet;
+use crate::utils::{Resource, ResourceSet};
 
 #[derive(Debug, Clone)]
 pub struct ProcessData {
@@ -47,6 +47,14 @@ impl ProcessData {
 
     pub fn write(&self, fd: u8, buf: &[u8]) -> isize {
         self.resources.read().write(fd, buf)
+    }
+
+    pub fn open(&self, resource: Resource) -> u8 {
+        self.resources.write().open(resource)
+    }
+
+    pub fn close(&self, fd: u8) -> bool {
+        self.resources.write().close(fd)
     }
 
     pub fn sem_new(&mut self, key: u32, value: usize) -> bool {

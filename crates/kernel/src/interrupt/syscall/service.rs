@@ -1,9 +1,10 @@
 use core::alloc::Layout;
 
 use chrono::NaiveDate;
+use storage::FileSystem;
 
 use super::SyscallArgs;
-use crate::{proc, proc::*};
+use crate::{drivers::filesystem, proc, proc::*, utils::Resource};
 
 pub fn spawn_process(args: &SyscallArgs) -> usize {
     // get app name by args
@@ -39,6 +40,46 @@ pub fn sys_read(args: &SyscallArgs) -> usize {
     let fd = args.arg0 as u8;
     let buf = unsafe { core::slice::from_raw_parts_mut(args.arg1 as *mut u8, args.arg2) };
     proc::read(fd, buf) as usize
+}
+
+pub fn sys_open(args: &SyscallArgs) -> usize {
+    let path = unsafe {
+        core::str::from_utf8_unchecked(core::slice::from_raw_parts(
+            args.arg0 as *const u8,
+            args.arg1,
+        ))
+    };
+
+    match filesystem::get_rootfs().open_file(path) {
+        Ok(file) => proc::open(Resource::File(file)) as usize,
+        Err(err) => {
+            warn!("failed to open {}: {:?}", path, err);
+            (-1isize) as usize
+        }
+    }
+}
+
+pub fn sys_close(args: &SyscallArgs) -> usize {
+    if proc::close(args.arg0 as u8) {
+        0
+    } else {
+        (-1isize) as usize
+    }
+}
+
+pub fn sys_list_dir(args: &SyscallArgs) -> usize {
+    let path = unsafe {
+        core::str::from_utf8_unchecked(core::slice::from_raw_parts(
+            args.arg0 as *const u8,
+            args.arg1,
+        ))
+    };
+
+    if filesystem::ls(path) {
+        0
+    } else {
+        (-1isize) as usize
+    }
 }
 
 pub fn exit_process(args: &SyscallArgs, context: &mut ProcessContext) {

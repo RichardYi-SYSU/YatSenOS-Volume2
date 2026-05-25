@@ -31,7 +31,6 @@ pub mod proc;
 pub use alloc::format;
 
 use boot::BootInfo;
-use storage::PartitionTable;
 use uefi::{Status, runtime::ResetType};
 
 pub fn init(boot_info: &'static BootInfo) {
@@ -46,15 +45,7 @@ pub fn init(boot_info: &'static BootInfo) {
     memory::gdt::init(); // init gdt
     memory::allocator::init(); // init kernel heap allocator
 
-    if let Some(drive) = drivers::ata::AtaDrive::open(0, 0) {
-        let table = storage::mbr::MbrTable::<_, storage::Block512>::parse(drive)
-            .expect("Failed to parse MBR");
-        let partitions = table.partitions().expect("Failed to get partitions");
-
-        for (i, part) in partitions.iter().enumerate() {
-            info!("Partition {} view: {:#?}", i, part);
-        }
-    }
+    filesystem::init(); // init root filesystem
 
     interrupt::init(); // init interrupts
     memory::init(boot_info); // init memory manager

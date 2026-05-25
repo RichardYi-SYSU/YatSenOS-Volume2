@@ -1,6 +1,6 @@
-use alloc::boxed::Box;
+use alloc::{boxed::Box, format};
 
-use chrono::DateTime;
+use chrono::{Datelike, Timelike};
 use storage::{fat16::Fat16, mbr::*, *};
 
 use super::ata::*;
@@ -32,19 +32,49 @@ pub fn init() {
     info!("Initialized Filesystem.");
 }
 
-pub fn ls(root_path: &str) {
+pub fn ls(root_path: &str) -> bool {
     let iter = match get_rootfs().read_dir(root_path) {
         Ok(iter) => iter,
         Err(err) => {
             warn!("{:?}", err);
-            return;
+            return false;
         }
     };
 
-    // FIXME: format and print the file metadata
-    //      - use `for meta in iter` to iterate over the entries
-    //      - use `crate::humanized_size_short` for file size
-    //      - add '/' to the end of directory names
-    //      - format the date as you like
-    //      - do not forget to print the table header
+    println!("{:<24} {:>10} {:<4} {}", "Name", "Size", "Type", "Modified");
+    println!("{:-<24} {:-<10} {:-<4} {:-<19}", "", "", "", "");
+
+    for meta in iter {
+        let is_dir = meta.is_dir();
+        let name = if is_dir {
+            format!("{}/", meta.name)
+        } else {
+            meta.name
+        };
+        let kind = if is_dir { "dir" } else { "file" };
+        let (size, unit) = crate::humanized_size_short(meta.len as u64);
+
+        if let Some(time) = meta.modified {
+            println!(
+                "{:<24} {:>6.1} {:<3} {:<4} {:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+                name,
+                size,
+                unit,
+                kind,
+                time.year(),
+                time.month(),
+                time.day(),
+                time.hour(),
+                time.minute(),
+                time.second()
+            );
+        } else {
+            println!(
+                "{:<24} {:>6.1} {:<3} {:<4} -",
+                name, size, unit, kind
+            );
+        }
+    }
+
+    true
 }

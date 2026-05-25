@@ -9,6 +9,8 @@ pub mod macros;
 pub enum Syscall {
     Read = 0,
     Write = 1,
+    Open = 2,
+    Close = 3,
 
     GetPid = 39,
 
@@ -19,6 +21,7 @@ pub enum Syscall {
 
     Time = 65530,
     Sem = 65529,
+    ListDir = 65528,
     ListApp = 65531,
     Stat = 65532,
     Allocate = 65533,

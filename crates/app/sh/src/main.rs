@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use lib::*;
+use lib::{string::String, *};
 
 extern crate lib;
 
@@ -10,9 +10,37 @@ fn print_help() {
     println!("Student ID: 24319170");
     println!("help       - show this help message");
     println!("list       - list available user programs");
+    println!("ls [path]  - list filesystem directory");
+    println!("cat <path> - print a filesystem file");
     println!("ps         - show process status");
     println!("run <app>  - spawn a user program and wait for it");
     println!("exit       - exit shell");
+}
+
+fn cat_file(path: &str) {
+    let Some(fd) = sys_open(path) else {
+        println!("failed to open file: {}", path);
+        return;
+    };
+
+    let mut buf = [0u8; 512];
+    loop {
+        let Some(count) = sys_read(fd, &mut buf) else {
+            println!("failed to read file: {}", path);
+            break;
+        };
+
+        if count == 0 {
+            break;
+        }
+
+        print!("{}", String::from_utf8_lossy(&buf[..count]));
+    }
+    println!();
+
+    if !sys_close(fd) {
+        println!("failed to close file: {}", path);
+    }
 }
 
 fn run_app(name: &str) {
@@ -48,6 +76,19 @@ fn main() -> isize {
         match cmd {
             "help" => print_help(),
             "list" => sys_list_app(),
+            "ls" => {
+                let path = parts.next().unwrap_or("/");
+                if !sys_list_dir(path) {
+                    println!("failed to list directory: {}", path);
+                }
+            }
+            "cat" => {
+                if let Some(path) = parts.next() {
+                    cat_file(path);
+                } else {
+                    println!("usage: cat <path>");
+                }
+            }
             "ps" | "stat" => sys_stat(),
             "run" => {
                 if let Some(app) = parts.next() {
