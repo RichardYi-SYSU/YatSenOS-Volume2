@@ -13,7 +13,7 @@ fn print_help() {
     println!("ls [path]  - list filesystem directory");
     println!("cat <path> - print a filesystem file");
     println!("ps         - show process status");
-    println!("run <app>  - spawn a user program and wait for it");
+    println!("run <path> - spawn a user program from filesystem and wait for it");
     println!("exit       - exit shell");
 }
 
@@ -43,14 +43,14 @@ fn cat_file(path: &str) {
     }
 }
 
-fn run_app(name: &str) {
-    let pid = sys_spawn(name);
+fn run_app(path: &str) {
+    let pid = sys_spawn(path);
     if pid == 0 {
-        println!("failed to spawn app: {}", name);
+        println!("failed to spawn app: {}", path);
         return;
     }
 
-    println!("spawned {} as pid {}", name, pid);
+    println!("spawned {} as pid {}", path, pid);
     let code = sys_wait_pid(pid);
     println!("process {} exited with code {}", pid, code);
 }
@@ -91,10 +91,10 @@ fn main() -> isize {
             }
             "ps" | "stat" => sys_stat(),
             "run" => {
-                if let Some(app) = parts.next() {
-                    run_app(app);
+                if let Some(path) = parts.next() {
+                    run_app(path);
                 } else {
-                    println!("usage: run <app>");
+                    println!("usage: run <path>");
                 }
             }
             "exit" => return 0,

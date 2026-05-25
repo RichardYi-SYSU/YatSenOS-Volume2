@@ -7,20 +7,20 @@ use super::SyscallArgs;
 use crate::{drivers::filesystem, proc, proc::*, utils::Resource};
 
 pub fn spawn_process(args: &SyscallArgs) -> usize {
-    // get app name by args
+    // get app path by args
     // - core::str::from_utf8_unchecked
     // - core::slice::from_raw_parts
-    // spawn the process by name
+    // spawn the process by path
     // handle spawn error, return 0 if failed
     // return pid as usize
-    let name = unsafe {
+    let path = unsafe {
         core::str::from_utf8_unchecked(core::slice::from_raw_parts(
             args.arg0 as *const u8,
             args.arg1,
         ))
     };
 
-    proc::spawn(name)
+    proc::spawn(path)
         .map(|pid| u16::from(pid) as usize)
         .unwrap_or(0)
 }

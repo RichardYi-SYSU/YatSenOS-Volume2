@@ -21,6 +21,8 @@ pub use pid::ProcessId;
 use process::*;
 pub use sync::{SemaphoreResult, SemaphoreSet};
 pub use vm::ProcessVm;
+use crate::drivers::filesystem;
+use storage::FileSystem;
 use x86_64::{VirtAddr, structures::idt::PageFaultErrorCode};
 use xmas_elf::ElfFile;
 
@@ -55,33 +57,51 @@ pub fn init(boot_info: &'static boot::BootInfo) {
 }
 
 pub fn list_app() {
-    x86_64::instructions::interrupts::without_interrupts(|| {
-        let app_list = get_process_manager().app_list();
-        if app_list.is_none() {
-            println!("[!] No app found in list!");
+    let apps = match filesystem::get_rootfs().read_dir("/APP") {
+        Ok(iter) => iter
+            .filter(|meta| meta.is_file())
+            .map(|meta| meta.name)
+            .collect::<Vec<_>>()
+            .join(", "),
+        Err(err) => {
+            println!("[!] Failed to list /APP: {:?}", err);
             return;
         }
+    };
 
-        let apps = app_list
-            .unwrap()
-            .iter()
-            .map(|app| app.name.as_str())
-            .collect::<Vec<&str>>()
-            .join(", ");
-
-        // TODO: print more information like size, entry point, etc.
-
+    if apps.is_empty() {
+        println!("[!] No app found in /APP!");
+    } else {
         println!("[+] App list: {}", apps);
-    });
+    }
 }
 
-pub fn spawn(name: &str) -> Option<ProcessId> {
-    let app = x86_64::instructions::interrupts::without_interrupts(|| {
-        let app_list = get_process_manager().app_list()?;
-        app_list.iter().find(|&app| app.name.eq(name))
-    })?;
+pub fn spawn(path: &str) -> Option<ProcessId> {
+    let name = path.rsplit('/').find(|part| !part.is_empty())?;
 
-    elf_spawn(name.to_string(), &app.elf)
+    let mut file = match filesystem::get_rootfs().open_file(path) {
+        Ok(file) => file,
+        Err(err) => {
+            warn!("Failed to open app {}: {:?}", path, err);
+            return None;
+        }
+    };
+
+    let mut elf_buf = Vec::new();
+    if let Err(err) = file.read_all(&mut elf_buf) {
+        warn!("Failed to read app {}: {:?}", path, err);
+        return None;
+    }
+
+    let elf = match ElfFile::new(&elf_buf) {
+        Ok(elf) => elf,
+        Err(err) => {
+            warn!("Failed to parse app {} as ELF: {:?}", path, err);
+            return None;
+        }
+    };
+
+    elf_spawn(name.to_string(), &elf)
 }
 
 pub fn elf_spawn(name: String, elf: &ElfFile) -> Option<ProcessId> {
