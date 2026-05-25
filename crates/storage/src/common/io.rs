@@ -8,13 +8,16 @@ pub trait Read {
 
     /// Read all bytes until EOF in this source, placing them into `buf`.
     fn read_all(&mut self, buf: &mut Vec<u8>) -> FsResult<usize> {
-        let mut start_len = buf.len();
+        let start_len = buf.len();
+        let mut tmp = [0u8; 512];
         loop {
-            // FIXME: read data into the buffer
-            //      - extend the buffer if it's not big enough
-            //      - break if the read returns 0 or Err
-            //      - update the length of the buffer if data was read
+            let len = self.read(&mut tmp)?;
+            if len == 0 {
+                break;
+            }
+            buf.extend_from_slice(&tmp[..len]);
         }
+        Ok(buf.len() - start_len)
     }
 }
 
@@ -30,7 +33,7 @@ pub trait Write {
     fn flush(&mut self) -> FsResult;
 
     /// Attempts to write an entire buffer into this writer.
-    fn write_all(&mut self, mut buf: &[u8]) -> FsResult {
+    fn write_all(&mut self, _buf: &[u8]) -> FsResult {
         // not required for lab
         todo!()
     }

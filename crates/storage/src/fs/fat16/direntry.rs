@@ -56,11 +56,26 @@ impl DirEntry {
     ///
     /// reference: https://osdev.org/FAT#Standard_8.3_format
     pub fn parse(data: &[u8]) -> FsResult<DirEntry> {
-        let filename = ShortFileName::new(&data[..11]);
+        if data.len() < Self::LEN {
+            return Err(FilenameError::UnableToParse.into());
+        }
 
-        // FIXME: parse the rest of the fields
-        //      - ensure you can pass the test
-        //      - you may need `parse_datetime` function
+        let filename = ShortFileName::new(&data[..11]);
+        let attributes = Attributes::from_bits_truncate(data[11]);
+        let created_time = parse_datetime(
+            ((u16::from_le_bytes(data[16..18].try_into().unwrap()) as u32) << 16)
+                | u16::from_le_bytes(data[14..16].try_into().unwrap()) as u32,
+        );
+        let accessed_time =
+            parse_datetime((u16::from_le_bytes(data[18..20].try_into().unwrap()) as u32) << 16);
+        let modified_time = parse_datetime(
+            ((u16::from_le_bytes(data[24..26].try_into().unwrap()) as u32) << 16)
+                | u16::from_le_bytes(data[22..24].try_into().unwrap()) as u32,
+        );
+        let cluster_hi = u16::from_le_bytes(data[20..22].try_into().unwrap()) as u32;
+        let cluster_lo = u16::from_le_bytes(data[26..28].try_into().unwrap()) as u32;
+        let cluster = (cluster_hi << 16) | cluster_lo;
+        let size = u32::from_le_bytes(data[28..32].try_into().unwrap());
 
         Ok(DirEntry {
             filename,
@@ -76,10 +91,37 @@ impl DirEntry {
     pub fn as_meta(&self) -> Metadata {
         self.into()
     }
+
+    pub fn is_valid(&self) -> bool {
+        !self.filename.is_eod() && !self.filename.is_unused()
+    }
+
+    pub fn is_long_name(&self) -> bool {
+        self.attributes.bits() == Attributes::LFN.bits()
+    }
+
+    pub fn is_directory(&self) -> bool {
+        self.attributes.contains(Attributes::DIRECTORY)
+    }
+
+    pub fn is_file(&self) -> bool {
+        self.is_valid()
+            && !self.is_directory()
+            && !self.is_long_name()
+            && !self.attributes.contains(Attributes::VOLUME_ID)
+    }
 }
 
 fn parse_datetime(time: u32) -> FsTime {
-    // FIXME: parse the year, month, day, hour, min, sec from time
+    let raw_time = (time & 0xFFFF) as u16;
+    let raw_date = (time >> 16) as u16;
+
+    let sec = ((raw_time & 0x1F) * 2) as u32;
+    let min = ((raw_time >> 5) & 0x3F) as u32;
+    let hour = ((raw_time >> 11) & 0x1F) as u32;
+    let day = (raw_date & 0x1F) as u32;
+    let month = ((raw_date >> 5) & 0x0F) as u32;
+    let year = 1980 + ((raw_date >> 9) & 0x7F) as i32;
 
     if let Single(time) = Utc.with_ymd_and_hms(year, month, day, hour, min, sec) {
         time
@@ -124,19 +166,73 @@ impl ShortFileName {
 
     /// Parse a short file name from a string
     pub fn parse(name: &str) -> FsResult<ShortFileName> {
-        // FIXME: implement the parse function
-        //      use `FilenameError` and into `FsError`
-        //      use different error types for following conditions:
-        //
-        //      - use 0x20 ' ' for right padding
-        //      - check if the filename is empty
-        //      - check if the name & ext are too long
-        //      - period `.` means the start of the file extension
-        //      - check if the period is misplaced (after 8 characters)
-        //      - check if the filename contains invalid characters:
-        //        [0x00..=0x1F, 0x20, 0x22, 0x2A, 0x2B, 0x2C, 0x2F, 0x3A, 0x3B,
-        //        0x3C, 0x3D, 0x3E, 0x3F, 0x5B, 0x5C, 0x5D, 0x7C]
+        if name.is_empty() {
+            return Err(FilenameError::FilenameEmpty.into());
+        }
+
+        let mut base = [0x20u8; 8];
+        let mut ext = [0x20u8; 3];
+        let mut in_ext = false;
+        let mut base_len = 0usize;
+        let mut ext_len = 0usize;
+
+        for byte in name.bytes() {
+            if byte == b'.' {
+                if in_ext || base_len == 0 || base_len > 8 {
+                    return Err(FilenameError::MisplacedPeriod.into());
+                }
+                in_ext = true;
+                continue;
+            }
+
+            if is_invalid_sfn_char(byte) {
+                return Err(FilenameError::InvalidCharacter.into());
+            }
+
+            let byte = byte.to_ascii_uppercase();
+            if in_ext {
+                if ext_len >= ext.len() {
+                    return Err(FilenameError::NameTooLong.into());
+                }
+                ext[ext_len] = byte;
+                ext_len += 1;
+            } else {
+                if base_len >= base.len() {
+                    return Err(FilenameError::NameTooLong.into());
+                }
+                base[base_len] = byte;
+                base_len += 1;
+            }
+        }
+
+        if base_len == 0 {
+            return Err(FilenameError::FilenameEmpty.into());
+        }
+
+        Ok(ShortFileName { name: base, ext })
     }
+}
+
+fn is_invalid_sfn_char(byte: u8) -> bool {
+    matches!(
+        byte,
+        0x00..=0x20
+            | 0x22
+            | 0x2A
+            | 0x2B
+            | 0x2C
+            | 0x2F
+            | 0x3A
+            | 0x3B
+            | 0x3C
+            | 0x3D
+            | 0x3E
+            | 0x3F
+            | 0x5B
+            | 0x5C
+            | 0x5D
+            | 0x7C
+    )
 }
 
 impl Debug for ShortFileName {
