@@ -42,6 +42,10 @@ impl BootInfoFrameAllocator {
         self.used
     }
 
+    pub fn frames_recycled(&self) -> usize {
+        self.recycled.len()
+    }
+
     pub fn frames_total(&self) -> usize {
         self.size
     }
@@ -49,8 +53,13 @@ impl BootInfoFrameAllocator {
 
 unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame> {
-        let frame = self.recycled.pop().or_else(|| self.frames.next());
-
+        // try pop from recycled frames
+        if let Some(frame) = self.recycled.pop() {
+            return Some(frame);
+        }
+        // if recycled is empty:
+        // try allocate from frames like before
+        let frame = self.frames.next();
         if frame.is_some() {
             self.used += 1;
         }
@@ -61,10 +70,8 @@ unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
 
 impl FrameDeallocator<Size4KiB> for BootInfoFrameAllocator {
     unsafe fn deallocate_frame(&mut self, frame: PhysFrame) {
+        // push frame to recycled
         self.recycled.push(frame);
-        if self.used > 0 {
-            self.used -= 1;
-        }
     }
 }
 
@@ -75,7 +82,7 @@ fn create_frame_iter(memory_map: &BootMemoryMap) -> BootInfoFrameIter {
         // get usable regions from memory map
         .filter(|r| r.ty == MemoryType::CONVENTIONAL)
         // align to page boundary
-        .flat_map(|r| (0..r.page_count).map(move |v| (v * 4096 + r.phys_start)))
+        .flat_map(|r| (0..r.page_count).map(move |v| v * 4096 + r.phys_start))
         // create `PhysFrame` types from the start addresses
         .map(|addr| PhysFrame::containing_address(PhysAddr::new(addr)));
 
