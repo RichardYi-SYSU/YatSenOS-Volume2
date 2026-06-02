@@ -164,7 +164,7 @@ impl ProcessInner {
         self.context.init_stack_frame(entry, stack_top);
     }
 
-    pub fn load_elf(&mut self, elf: &xmas_elf::ElfFile) -> u64 {
+    pub fn load_elf(&mut self, elf: &xmas_elf::ElfFile) {
         self.vm_mut().load_elf(elf)
     }
 

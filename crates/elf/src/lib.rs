@@ -1,13 +1,20 @@
 #![no_std]
 
+extern crate alloc;
+
 #[macro_use]
 extern crate log;
 
+use alloc::vec::Vec;
 use core::ptr::{copy_nonoverlapping, write_bytes};
 
 use x86_64::{
     PhysAddr, VirtAddr, align_up,
-    structures::paging::{mapper::*, page::PageRange, *},
+    structures::paging::{
+        mapper::*,
+        page::{PageRange, PageRangeInclusive},
+        *,
+    },
 };
 use xmas_elf::{ElfFile, program};
 
@@ -115,27 +122,24 @@ pub fn load_elf(
     page_table: &mut impl Mapper<Size4KiB>,
     frame_allocator: &mut impl FrameAllocator<Size4KiB>,
     user_access: bool,
-) -> Result<u64, MapToError<Size4KiB>> {
+) -> Result<Vec<PageRangeInclusive<Size4KiB>>, MapToError<Size4KiB>> {
     trace!("Loading ELF file...{:?}", elf.input.as_ptr());
-
-    let mut pages_loaded = 0;
-
-    for segment in elf.program_iter() {
-        if segment.get_type().unwrap() != program::Type::Load {
-            continue;
-        }
-
-        pages_loaded += load_segment(
-            elf,
-            physical_offset,
-            &segment,
-            page_table,
-            frame_allocator,
-            user_access,
-        )?;
-    }
-
-    Ok(pages_loaded)
+    
+    // use iterator and functional programming to load segments
+    // and collect the loaded pages into a vector
+    elf.program_iter()
+        .filter(|segment| segment.get_type().unwrap() == program::Type::Load)
+        .map(|segment| {
+            load_segment(
+                elf,
+                physical_offset,
+                &segment,
+                page_table,
+                frame_allocator,
+                user_access,
+            )
+        })
+        .collect()
 }
 
 /// Load & Map ELF segment
@@ -148,7 +152,7 @@ fn load_segment(
     page_table: &mut impl Mapper<Size4KiB>,
     frame_allocator: &mut impl FrameAllocator<Size4KiB>,
     user_access: bool,
-) -> Result<u64, MapToError<Size4KiB>> {
+) -> Result<PageRangeInclusive<Size4KiB>, MapToError<Size4KiB>> {
     trace!("Loading & mapping segment: {:#x?}", segment);
 
     let mem_size = segment.mem_size();
@@ -248,5 +252,5 @@ fn load_segment(
         }
     }
 
-    Ok(total_end_page - start_page + 1)
+    Ok(Page::range_inclusive(start_page, total_end_page))
 }

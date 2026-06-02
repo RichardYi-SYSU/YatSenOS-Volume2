@@ -12,6 +12,7 @@ extern crate syscall_def;
 pub mod io;
 pub mod allocator;
 pub mod sync;
+pub mod time;
 pub extern crate alloc;
 
 mod syscall;
@@ -23,6 +24,7 @@ pub use chrono::*;
 pub use io::*;
 pub use sync::*;
 pub use syscall::*;
+pub use time::*;
 
 pub fn init() {
     #[cfg(feature = "brk_alloc")]

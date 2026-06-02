@@ -15,7 +15,7 @@ pub mod stack;
 
 use self::{heap::Heap, stack::Stack};
 
-use super::PageTableContext;
+use super::{PageTableContext, ProcessId};
 
 // See the documentation for the `KernelPages` type
 // Ignore when you not reach this part
@@ -91,33 +91,50 @@ impl ProcessVm {
         let alloc = &mut *get_frame_alloc_for_sure();
 
         self.load_elf_code(elf, mapper, alloc);
-        self.stack.init(mapper, alloc);
     }
 
     fn load_elf_code(&mut self, elf: &ElfFile, mapper: MapperRef, alloc: FrameAllocatorRef) {
         // FIXME: make the `load_elf` function return the code pages
         self.code =
             elf::load_elf(elf, *PHYSICAL_OFFSET.get().unwrap(), mapper, alloc, true).unwrap();
-
-        // FIXME: calculate code usage
-        self.code_usage = /* The code usage */;
+        // calculate code usage
+        self.code_usage = self
+            .code
+            .iter()
+            .map(|range| range.end - range.start + 1)
+            .sum::<u64>()
+            * PAGE_SIZE;
     }
 
-    pub fn fork(&self, stack_offset_count: u64) -> Self {
+    pub fn init_proc_stack(&mut self, pid: ProcessId) -> VirtAddr {
+        let mapper = &mut self.page_table.mapper();
+        let alloc = &mut *get_frame_alloc_for_sure();
+        let bottom = stack::STACK_INIT_BOT - pid.0 as u64 * stack::STACK_MAX_SIZE;
+
+        self.stack.init(bottom, mapper, alloc);
+
+        VirtAddr::new(bottom + stack::STACK_DEF_SIZE - 8)
+    }
+
+    pub fn fork(&self, stack_offset_count: u64) -> (Self, u64) {
         let owned_page_table = self.page_table.fork();
         let mapper = &mut owned_page_table.mapper();
 
         let alloc = &mut *get_frame_alloc_for_sure();
+        let (stack, stack_offset) = self.stack.fork(mapper, alloc, stack_offset_count);
 
-        Self {
-            page_table: owned_page_table,
-            stack: self.stack.fork(mapper, alloc, stack_offset_count),
-            heap: self.heap.fork(),
+        (
+            Self {
+                page_table: owned_page_table,
+                stack,
+                heap: self.heap.fork(),
 
-            // do not share code info
-            code: Vec::new(),
-            code_usage: 0,
-        }
+                // do not share code info
+                code: Vec::new(),
+                code_usage: 0,
+            },
+            stack_offset,
+        )
     }
 
     pub fn handle_page_fault(&mut self, addr: VirtAddr) -> bool {
@@ -129,6 +146,17 @@ impl ProcessVm {
 
     pub(super) fn memory_usage(&self) -> u64 {
         self.stack.memory_usage() + self.heap.memory_usage() + self.code_usage
+    }
+
+    pub(super) fn memory_pages(&self) -> u64 {
+        self.memory_usage().div_ceil(PAGE_SIZE)
+    }
+
+    pub fn reclaim_stack(&mut self) {
+        let mapper = &mut self.page_table.mapper();
+        let alloc = &mut *get_frame_alloc_for_sure();
+
+        self.stack.reclaim(mapper, alloc);
     }
 
     pub(super) fn clean_up(&mut self) -> Result<(), UnmapError> {
@@ -145,7 +173,8 @@ impl ProcessVm {
 
             // free code
             for page_range in self.code.iter() {
-                elf::unmap_range(*page_range, mapper, dealloc, true)?;
+                let range = Page::range(page_range.start, page_range.end + 1);
+                elf::unmap_range(range, mapper, dealloc)?;
             }
 
             unsafe {

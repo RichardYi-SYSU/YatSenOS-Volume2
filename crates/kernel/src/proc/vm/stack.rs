@@ -2,7 +2,11 @@ use core::ptr::copy_nonoverlapping;
 
 use x86_64::{
     VirtAddr,
-    structures::paging::{Page, mapper::MapToError, page::*},
+    structures::paging::{
+        Page,
+        mapper::{MapToError, UnmapError},
+        page::*,
+    },
 };
 
 use super::{FrameAllocatorRef, MapperRef};
@@ -153,6 +157,25 @@ impl Stack {
         let empty = Stack::empty();
         self.range = empty.range;
         self.usage = 0;
+    }
+
+    pub fn clean_up(
+        &mut self,
+        mapper: MapperRef,
+        alloc: FrameAllocatorRef,
+    ) -> Result<(), UnmapError> {
+        if self.usage == 0 {
+            return Ok(());
+        }
+
+        let range = Page::range(self.range.start, self.range.end);
+        elf::unmap_range(range, mapper, alloc)?;
+
+        let empty = Stack::empty();
+        self.range = empty.range;
+        self.usage = 0;
+
+        Ok(())
     }
 
     pub fn fork(

@@ -170,8 +170,7 @@ impl ProcessManager {
 
         let mut inner = proc.write();
         // load elf to process pagetable
-        let code_pages = inner.load_elf(elf);
-        inner.set_code_pages(code_pages);
+        inner.load_elf(elf);
         // alloc new stack for process
         let stack_top = inner.vm_mut().init_proc_stack(proc.pid());
         // mark process as ready
@@ -303,8 +302,9 @@ impl ProcessManager {
 
         let alloc = get_frame_alloc_for_sure();
         let frames_used = alloc.frames_used();
+        let frames_recycled = alloc.frames_recycled();
         let frames_total = alloc.frames_total();
-        let used = frames_used * PAGE_SIZE as usize;
+        let used = (frames_used - frames_recycled) * PAGE_SIZE as usize;
         let total = frames_total * PAGE_SIZE as usize;
         output += &format_usage("Memory", used, total);
         drop(alloc);
