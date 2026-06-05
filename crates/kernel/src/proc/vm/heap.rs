@@ -3,7 +3,7 @@ use core::sync::atomic::{AtomicU64, Ordering};
 
 use x86_64::{
     VirtAddr,
-    structures::paging::{Page, mapper::UnmapError},
+    structures::paging::{Page, Size4KiB, mapper::UnmapError},
 };
 
 use super::{FrameAllocatorRef, MapperRef};
@@ -76,9 +76,13 @@ impl Heap {
             return Ok(());
         }
 
-        // FIXME: load the current end address and **reset it to base** (use `swap`)
+        // load the current end address and **reset it to base** (use `swap`)
+        let old_end = self.end.swap(self.base.as_u64(), Ordering::Relaxed);
+        let start_page = Page::<Size4KiB>::containing_address(self.base);
+        let end_page = Page::<Size4KiB>::containing_address(VirtAddr::new(old_end - 1));
 
-        // FIXME: unmap the heap pages
+        // unmap the heap pages
+        elf::unmap_range(Page::range(start_page, end_page + 1), mapper, dealloc)?;
 
         Ok(())
     }

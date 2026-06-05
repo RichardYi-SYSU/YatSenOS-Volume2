@@ -202,10 +202,6 @@ impl ProcessInner {
     }
 
     pub fn kill(&mut self, ret: isize) {
-        if let Some(vm) = self.proc_vm.as_mut() {
-            vm.reclaim_stack();
-        }
-
         self.proc_vm.take();
         self.exit_code = Some(ret);
         self.status = ProgramStatus::Dead;
