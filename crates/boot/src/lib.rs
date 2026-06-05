@@ -12,7 +12,7 @@ pub use uefi::{
 use x86_64::{
     VirtAddr,
     registers::control::Cr3,
-    structures::paging::{OffsetPageTable, PageTable},
+    structures::paging::{OffsetPageTable, PageTable, Size4KiB, page::PageRangeInclusive},
 };
 use xmas_elf::ElfFile;
 
@@ -29,6 +29,7 @@ extern crate log;
 pub const APP_MAX_NUM: usize = 16;
 
 pub type BootMemoryMap = ArrayVec<MemoryDescriptor, 256>;
+pub type KernelPages = ArrayVec<PageRangeInclusive<Size4KiB>, 8>;
 
 /// App information loaded by bootloader.
 pub struct App {
@@ -57,6 +58,9 @@ pub struct BootInfo {
 
     /// Loaded user apps.
     pub loaded_apps: Option<AppList>,
+
+    /// Kernel ELF LOAD segment pages.
+    pub kernel_pages: KernelPages,
 }
 
 /// Get current page table from CR3

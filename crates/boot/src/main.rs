@@ -86,14 +86,16 @@ fn efi_main() -> Status {
     );
 
     // FIXME: load and map the kernel elf file
-    elf::load_elf(
+    let kernel_pages: KernelPages = elf::load_elf(
         &elf,
         config.physical_memory_offset,
         &mut page_table,
         &mut frame_allocator,
         false,
     )
-    .expect("Failed to load kernel ELF");
+    .expect("Failed to load kernel ELF")
+    .into_iter()
+    .collect();
 
     // FIXME: map kernel stack
     let init_stack_pages = if config.kernel_stack_auto_grow == 0 {
@@ -136,6 +138,7 @@ fn efi_main() -> Status {
         system_table,
         log_level: encode_log_level(config.log_level),
         loaded_apps: apps,
+        kernel_pages,
     };
 
     // align stack to 8 bytes

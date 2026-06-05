@@ -19,12 +19,13 @@ pub use manager::*;
 pub use paging::PageTableContext;
 pub use pid::ProcessId;
 use process::*;
+use storage::FileSystem;
 pub use sync::{SemaphoreResult, SemaphoreSet};
 pub use vm::ProcessVm;
-use crate::drivers::filesystem;
-use storage::FileSystem;
 use x86_64::{VirtAddr, structures::idt::PageFaultErrorCode};
 use xmas_elf::ElfFile;
+
+use crate::drivers::filesystem;
 
 pub const KERNEL_PID: ProcessId = ProcessId(1);
 
@@ -38,7 +39,7 @@ pub enum ProgramStatus {
 
 /// init process manager
 pub fn init(boot_info: &'static boot::BootInfo) {
-    let proc_vm = ProcessVm::new(PageTableContext::new()).init_kernel_vm();
+    let proc_vm = ProcessVm::new(PageTableContext::new()).init_kernel_vm(&boot_info.kernel_pages);
 
     trace!("Init kernel vm: {:#?}", proc_vm);
 

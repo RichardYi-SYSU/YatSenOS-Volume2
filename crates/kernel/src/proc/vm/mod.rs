@@ -1,22 +1,23 @@
 use alloc::{format, vec::Vec};
+
+use boot::KernelPages;
 use x86_64::{
+    VirtAddr,
     structures::paging::{
         mapper::{CleanUp, UnmapError},
         page::*,
         *,
     },
-    VirtAddr,
 };
 use xmas_elf::ElfFile;
+
 use crate::{humanized_size, memory::*};
 
 pub mod heap;
 pub mod stack;
 
 use self::{heap::Heap, stack::Stack};
-
 use super::{PageTableContext, ProcessId};
-
 // See the documentation for the `KernelPages` type
 // Ignore when you not reach this part
 //
@@ -51,28 +52,19 @@ impl ProcessVm {
             code_usage: 0,
         }
     }
-
-
     // See the documentation for the `KernelPages` type
     // Ignore when you not reach this part
-
     /// Initialize kernel vm
     ///
     /// NOTE: this function should only be called by the first process
-    // pub fn init_kernel_vm(mut self, pages: &KernelPages) -> Self {
-    //     // FIXME: record kernel code usage
-    //     self.code = /* The kernel pages */;
-    //     self.code_usage = /* The kernel code usage */;
-
-    //     self.stack = Stack::kstack();
-
-    //     // ignore heap for kernel process as we don't manage it
-
-    //     self
-    // }
-
-    pub fn init_kernel_vm(mut self) -> Self {
-        // TODO: record kernel code usage
+    pub fn init_kernel_vm(mut self, pages: &KernelPages) -> Self {
+        self.code = pages.iter().cloned().collect();
+        self.code_usage = self
+            .code
+            .iter()
+            .map(|range| range.end - range.start + 1)
+            .sum::<u64>()
+            * PAGE_SIZE;
         self.stack = Stack::kstack();
         self
     }
