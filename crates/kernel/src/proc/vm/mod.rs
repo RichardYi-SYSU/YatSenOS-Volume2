@@ -129,11 +129,12 @@ impl ProcessVm {
         )
     }
 
-    pub fn handle_page_fault(&mut self, addr: VirtAddr) -> bool {
+    pub fn handle_page_fault(&mut self, addr: VirtAddr, user_access: bool) -> bool {
         let mapper = &mut self.page_table.mapper();
         let alloc = &mut *get_frame_alloc_for_sure();
 
-        self.stack.handle_page_fault(addr, mapper, alloc)
+        self.stack
+            .handle_page_fault(addr, mapper, alloc, user_access)
     }
 
     pub(super) fn memory_usage(&self) -> u64 {

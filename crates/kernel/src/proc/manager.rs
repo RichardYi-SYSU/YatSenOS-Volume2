@@ -215,7 +215,13 @@ impl ProcessManager {
 
         let current = self.current();
         let pid = current.pid();
-        let handled = current.write().handle_page_fault(addr);
+        let is_kernel = pid == KERNEL_PID;
+
+        if is_kernel {
+            info!("Page fault on kernel at {:#x}", addr);
+        }
+
+        let handled = current.write().handle_page_fault(addr, !is_kernel);
 
         if handled {
             info!("Handled page fault for process #{} at {:#x}", pid, addr);

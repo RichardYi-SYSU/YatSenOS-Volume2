@@ -98,14 +98,16 @@ fn efi_main() -> Status {
     .collect();
 
     // FIXME: map kernel stack
-    let init_stack_pages = if config.kernel_stack_auto_grow == 0 {
-        config.kernel_stack_size
+    let (stack_start, stack_pages) = if config.kernel_stack_auto_grow == 0 {
+        (config.kernel_stack_address, config.kernel_stack_size)
     } else {
-        config.kernel_stack_auto_grow
+        let init_pages = config.kernel_stack_auto_grow;
+        let bottom_offset = (config.kernel_stack_size - init_pages) * 0x1000;
+        (config.kernel_stack_address + bottom_offset, init_pages)
     };
     elf::map_range(
-        config.kernel_stack_address,
-        init_stack_pages,
+        stack_start,
+        stack_pages,
         &mut page_table,
         &mut frame_allocator,
         false,

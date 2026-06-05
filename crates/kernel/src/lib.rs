@@ -50,12 +50,35 @@ pub fn init(boot_info: &'static BootInfo) {
     interrupt::init(); // init interrupts
     memory::init(boot_info); // init memory manager
     proc::init(boot_info); // init process manager
+
+    info!("Test stack grow.");
+    grow_stack();
+    info!("Stack grow test done.");
+
     memory::user::init(); // init shared user heap after frame allocator and process setup
 
     x86_64::instructions::interrupts::enable();
     info!("Interrupts Enabled.");
 
     info!("YatSenOS initialized.");
+}
+
+#[inline(never)]
+#[unsafe(no_mangle)]
+pub fn grow_stack() {
+    const STACK_SIZE: usize = 1024 * 4;
+    const STEP: usize = 64;
+
+    let mut array = [0u64; STACK_SIZE];
+    info!("Stack: {:?}", array.as_ptr());
+
+    for i in (0..STACK_SIZE).step_by(STEP) {
+        array[i] = i as u64;
+    }
+
+    for i in (0..STACK_SIZE).step_by(STEP) {
+        assert_eq!(array[i], i as u64);
+    }
 }
 
 pub fn wait(pid: proc::ProcessId) {

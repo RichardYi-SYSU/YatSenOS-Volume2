@@ -156,8 +156,8 @@ impl ProcessInner {
         self.proc_vm.as_mut().unwrap()
     }
 
-    pub fn handle_page_fault(&mut self, addr: VirtAddr) -> bool {
-        self.vm_mut().handle_page_fault(addr)
+    pub fn handle_page_fault(&mut self, addr: VirtAddr, user_access: bool) -> bool {
+        self.vm_mut().handle_page_fault(addr, user_access)
     }
 
     pub fn init_stack_frame(&mut self, entry: VirtAddr, stack_top: VirtAddr) {

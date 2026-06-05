@@ -31,7 +31,7 @@ const STACK_INIT_TOP_PAGE: Page<Size4KiB> = Page::containing_address(VirtAddr::n
 // kernel stack
 pub const KSTACK_MAX: u64 = 0xffff_ff02_0000_0000;
 pub const KSTACK_DEF_BOT: u64 = KSTACK_MAX - STACK_MAX_SIZE;
-pub const KSTACK_DEF_PAGE: u64 = 512;
+pub const KSTACK_DEF_PAGE: u64 = 4;
 pub const KSTACK_DEF_SIZE: u64 = KSTACK_DEF_PAGE * crate::memory::PAGE_SIZE;
 
 pub const KSTACK_INIT_BOT: u64 = KSTACK_MAX - KSTACK_DEF_SIZE;
@@ -40,6 +40,7 @@ pub const KSTACK_INIT_TOP: u64 = KSTACK_MAX - 8;
 const KSTACK_INIT_PAGE: Page<Size4KiB> = Page::containing_address(VirtAddr::new(KSTACK_INIT_BOT));
 const KSTACK_INIT_TOP_PAGE: Page<Size4KiB> =
     Page::containing_address(VirtAddr::new(KSTACK_INIT_TOP));
+const KSTACK_INIT_END_PAGE: Page<Size4KiB> = Page::containing_address(VirtAddr::new(KSTACK_MAX));
 
 pub struct Stack {
     range: PageRange<Size4KiB>,
@@ -63,7 +64,7 @@ impl Stack {
 
     pub const fn kstack() -> Self {
         Self {
-            range: Page::range(KSTACK_INIT_PAGE, KSTACK_INIT_TOP_PAGE),
+            range: Page::range(KSTACK_INIT_PAGE, KSTACK_INIT_END_PAGE),
             usage: KSTACK_DEF_PAGE,
         }
     }
@@ -80,12 +81,13 @@ impl Stack {
         addr: VirtAddr,
         mapper: MapperRef,
         alloc: FrameAllocatorRef,
+        user_access: bool,
     ) -> bool {
         if !self.is_on_stack(addr) {
             return false;
         }
 
-        match self.grow_stack(addr, mapper, alloc) {
+        match self.grow_stack(addr, mapper, alloc, user_access) {
             Ok(handled) => handled,
             Err(m) => {
                 error!("Grow stack failed: {:?}", m);
@@ -107,6 +109,7 @@ impl Stack {
         addr: VirtAddr,
         mapper: MapperRef,
         alloc: FrameAllocatorRef,
+        user_access: bool,
     ) -> Result<bool, MapToError<Size4KiB>> {
         debug_assert!(self.is_on_stack(addr), "Address is not on stack.");
         // FIXME: grow stack for page fault
@@ -130,7 +133,7 @@ impl Stack {
             page_count,
             mapper,
             alloc,
-            true,
+            user_access,
         )?;
 
         self.range = Page::range(fault_page, old_end);
