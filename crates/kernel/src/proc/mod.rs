@@ -119,6 +119,12 @@ pub fn elf_spawn(name: String, elf: &ElfFile) -> Option<ProcessId> {
     Some(pid)
 }
 
+pub fn brk(addr: Option<VirtAddr>) -> Option<VirtAddr> {
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        get_process_manager().current().read().brk(addr)
+    })
+}
+
 pub fn fork(context: &mut ProcessContext) {
     x86_64::instructions::interrupts::without_interrupts(|| {
         let manager = get_process_manager();

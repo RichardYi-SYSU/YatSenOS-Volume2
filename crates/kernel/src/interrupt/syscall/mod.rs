@@ -61,6 +61,8 @@ pub fn dispatcher(context: &mut ProcessContext) {
         Syscall::Open => context.set_rax(sys_open(&args)),
         // fd: arg0 as u8
         Syscall::Close => context.set_rax(sys_close(&args)),
+        // addr: arg0 as usize, 0 means querying current heap end
+        Syscall::Brk => context.set_rax(sys_brk(&args)),
 
         // None -> pid: u16
         Syscall::GetPid => context.set_rax(u16::from(get_pid()) as usize),

@@ -51,6 +51,16 @@ pub fn sys_list_dir(path: &str) -> bool {
 }
 
 #[inline(always)]
+pub fn sys_brk(addr: Option<usize>) -> Option<usize> {
+    const BRK_FAILED: usize = !0;
+
+    match syscall!(Syscall::Brk, addr.unwrap_or(0)) {
+        BRK_FAILED => None,
+        ret => Some(ret),
+    }
+}
+
+#[inline(always)]
 pub fn sys_wait_pid(pid: u16) -> isize {
     syscall!(Syscall::WaitPid, pid as u64) as isize
 }

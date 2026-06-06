@@ -1,0 +1,10 @@
+[package]
+edition.workspace = true
+name              = "ysos_brk"
+version.workspace = true
+
+[dependencies.lib]
+package = "yslib"
+path = "../../lib"
+default-features = false
+features = ["kernel_alloc"]

@@ -168,6 +168,10 @@ impl ProcessInner {
         self.vm_mut().load_elf(elf)
     }
 
+    pub fn brk(&self, addr: Option<VirtAddr>) -> Option<VirtAddr> {
+        self.vm().brk(addr)
+    }
+
     pub fn memory_usage(&self) -> u64 {
         self.proc_vm.as_ref().map_or(0, |vm| vm.memory_usage())
     }

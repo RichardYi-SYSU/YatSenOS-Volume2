@@ -2,6 +2,7 @@ use core::alloc::Layout;
 
 use chrono::NaiveDate;
 use storage::FileSystem;
+use x86_64::VirtAddr;
 
 use super::SyscallArgs;
 use crate::{drivers::filesystem, proc, proc::*, utils::Resource};
@@ -79,6 +80,19 @@ pub fn sys_list_dir(args: &SyscallArgs) -> usize {
         0
     } else {
         (-1isize) as usize
+    }
+}
+
+pub fn sys_brk(args: &SyscallArgs) -> usize {
+    let new_heap_end = if args.arg0 == 0 {
+        None
+    } else {
+        Some(VirtAddr::new(args.arg0 as u64))
+    };
+
+    match proc::brk(new_heap_end) {
+        Some(new_heap_end) => new_heap_end.as_u64() as usize,
+        None => !0,
     }
 }
 
