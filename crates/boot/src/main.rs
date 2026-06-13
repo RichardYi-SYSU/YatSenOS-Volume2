@@ -5,7 +5,7 @@
 #[macro_use]
 extern crate log;
 
-use uefi::{Status, entry, mem::memory_map::MemoryMap};
+use uefi::{Status, entry, mem::memory_map::MemoryMap, proto::console::gop::PixelFormat};
 use x86_64::registers::control::*;
 use ysos_boot::*;
 
@@ -19,6 +19,55 @@ fn encode_log_level(log_level: &str) -> [u8; 16] {
     let len = core::cmp::min(bytes.len(), encoded.len().saturating_sub(1));
     encoded[..len].copy_from_slice(&bytes[..len]);
     encoded
+}
+
+fn load_framebuffer_info() -> Option<FrameBufferInfo> {
+    let handle = match uefi::boot::get_handle_for_protocol::<GraphicsOutput>() {
+        Ok(handle) => handle,
+        Err(err) => {
+            warn!("Failed to get GOP handle: {:?}", err);
+            return None;
+        }
+    };
+
+    let mut gop = match uefi::boot::open_protocol_exclusive::<GraphicsOutput>(handle) {
+        Ok(gop) => gop,
+        Err(err) => {
+            warn!("Failed to open GOP: {:?}", err);
+            return None;
+        }
+    };
+
+    let mode = gop.current_mode_info();
+    let pixel_format = match mode.pixel_format() {
+        PixelFormat::Rgb => FrameBufferPixelFormat::Rgb,
+        PixelFormat::Bgr => FrameBufferPixelFormat::Bgr,
+        other => {
+            warn!("Unsupported GOP pixel format: {:?}", other);
+            return None;
+        }
+    };
+
+    let (width, height) = mode.resolution();
+    let stride = mode.stride();
+    let mut framebuffer = gop.frame_buffer();
+    let phys_addr = framebuffer.as_mut_ptr() as u64;
+    let size = framebuffer.size();
+
+    info!(
+        "GOP framebuffer: {:#x}, {} bytes, {}x{}, stride {}, {:?}",
+        phys_addr, size, width, height, stride, pixel_format
+    );
+
+    Some(FrameBufferInfo {
+        phys_addr,
+        size,
+        width,
+        height,
+        stride,
+        pixel_format,
+        bytes_per_pixel: 4,
+    })
 }
 
 #[entry]
@@ -56,6 +105,8 @@ fn efi_main() -> Status {
         None
     };
 
+    let framebuffer = load_framebuffer_info();
+
     // 3. Load MemoryMap
     let mmap = uefi::boot::memory_map(MemoryType::LOADER_DATA).expect("Failed to get memory map");
 
@@ -65,6 +116,12 @@ fn efi_main() -> Status {
         .max()
         .unwrap()
         .max(0x1_0000_0000); // include IOAPIC MMIO area
+
+    let max_phys_addr = framebuffer
+        .as_ref()
+        .map(|fb| fb.phys_addr + fb.size as u64)
+        .unwrap_or(max_phys_addr)
+        .max(max_phys_addr);
 
     // 4. Map ELF segments, kernel stack and physical memory to virtual memory
     let mut page_table = current_page_table();
@@ -141,6 +198,7 @@ fn efi_main() -> Status {
         log_level: encode_log_level(config.log_level),
         loaded_apps: apps,
         kernel_pages,
+        framebuffer,
     };
 
     // align stack to 8 bytes

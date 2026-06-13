@@ -42,6 +42,26 @@ pub struct App {
 pub type AppList = ArrayVec<App, APP_MAX_NUM>;
 pub type AppListRef = Option<&'static AppList>;
 
+/// Pixel layout used by the linear frame buffer.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[repr(u8)]
+pub enum FrameBufferPixelFormat {
+    Rgb,
+    Bgr,
+}
+
+/// UEFI GOP frame buffer information passed to the kernel.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct FrameBufferInfo {
+    pub phys_addr: u64,
+    pub size: usize,
+    pub width: usize,
+    pub height: usize,
+    pub stride: usize,
+    pub pixel_format: FrameBufferPixelFormat,
+    pub bytes_per_pixel: usize,
+}
+
 /// This structure represents the information that the bootloader passes to the
 /// kernel.
 pub struct BootInfo {
@@ -61,6 +81,9 @@ pub struct BootInfo {
 
     /// Kernel ELF LOAD segment pages.
     pub kernel_pages: KernelPages,
+
+    /// Linear frame buffer exported by UEFI GOP.
+    pub framebuffer: Option<FrameBufferInfo>,
 }
 
 /// Get current page table from CR3
