@@ -112,7 +112,8 @@ fn align_up(value: usize, align: usize) -> usize {
     (value + align - 1) & !(align - 1)
 }
 
-#[cfg(not(test))]
+#[allow(unexpected_cfgs)]
+#[cfg(all(not(test), not(rust_analyzer)))]
 #[alloc_error_handler]
 fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
     panic!("Allocation error: {:?}", layout)

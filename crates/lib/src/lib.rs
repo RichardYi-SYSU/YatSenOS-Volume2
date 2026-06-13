@@ -1,4 +1,5 @@
 #![allow(dead_code, unused_imports)]
+#![allow(unexpected_cfgs)]
 #![cfg_attr(not(test), feature(alloc_error_handler))]
 #![cfg_attr(not(test), no_std)]
 
@@ -27,7 +28,7 @@ pub use syscall::*;
 pub use time::*;
 
 pub fn init() {
-    #[cfg(feature = "brk_alloc")]
+    #[cfg(all(feature = "brk_alloc", not(feature = "kernel_alloc")))]
     crate::allocator::init();
 }
 

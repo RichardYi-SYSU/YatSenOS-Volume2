@@ -1,7 +1,7 @@
-#[cfg(feature = "brk_alloc")]
+#[cfg(all(feature = "brk_alloc", not(feature = "kernel_alloc")))]
 mod brk;
 
-#[cfg(feature = "brk_alloc")]
+#[cfg(all(feature = "brk_alloc", not(feature = "kernel_alloc")))]
 pub use brk::*;
 
 #[cfg(feature = "kernel_alloc")]

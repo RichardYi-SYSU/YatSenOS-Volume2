@@ -12,7 +12,8 @@ unsafe impl alloc::alloc::GlobalAlloc for KernelAllocator {
 #[global_allocator]
 static ALLOCATOR: KernelAllocator = KernelAllocator;
 
-#[cfg(not(test))]
+#[allow(unexpected_cfgs)]
+#[cfg(all(not(test), not(rust_analyzer)))]
 #[alloc_error_handler]
 fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
     panic!("Allocation error: {:?}", layout)
