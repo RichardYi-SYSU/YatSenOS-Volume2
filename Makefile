@@ -2,7 +2,7 @@ OVMF := assets/OVMF.fd
 ESP := esp
 BUILD_ARGS :=
 QEMU_ARGS := -m 96M
-QEMU_OUTPUT := -nographic
+QEMU_OUTPUT ?= -nographic
 MODE ?= release
 CUR_PATH := $(shell pwd)
 APP_PATH := $(CUR_PATH)/crates/app
@@ -33,6 +33,9 @@ endif
 	target/x86_64-unknown-ysos/$(MODE)
 
 run: build launch
+
+gui: QEMU_OUTPUT := -display sdl -serial stdio
+gui: build launch
 
 launch:
 	@qemu-system-x86_64 \
