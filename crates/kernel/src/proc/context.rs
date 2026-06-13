@@ -4,7 +4,10 @@ use x86_64::{
     structures::{gdt::SegmentSelector, idt::InterruptStackFrameValue},
 };
 
-use crate::{RegistersValue, memory::gdt::get_user_selector};
+use crate::{
+    RegistersValue,
+    memory::gdt::{get_selector, get_user_selector},
+};
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -66,6 +69,18 @@ impl ProcessContext {
         self.value.stack_frame.stack_segment = selector.user_data_selector;
 
         trace!("Init stack frame: {:#?}", &self.stack_frame);
+    }
+
+    pub fn init_kernel_stack_frame(&mut self, entry: VirtAddr, stack_top: VirtAddr) {
+        self.value.stack_frame.stack_pointer = stack_top;
+        self.value.stack_frame.instruction_pointer = entry;
+        self.value.stack_frame.cpu_flags = RFlags::INTERRUPT_FLAG;
+
+        let selector = get_selector();
+        self.value.stack_frame.code_segment = selector.code_selector;
+        self.value.stack_frame.stack_segment = selector.data_selector;
+
+        trace!("Init kernel stack frame: {:#?}", &self.stack_frame);
     }
 }
 

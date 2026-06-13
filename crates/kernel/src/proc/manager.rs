@@ -145,7 +145,7 @@ impl ProcessManager {
         let stack_top = proc.alloc_init_stack();
 
         // FIXME: set the stack frame
-        proc.write().init_stack_frame(entry, stack_top);
+        proc.write().init_kernel_stack_frame(entry, stack_top);
         // FIXME: add to process map
         let pid = proc.pid();
         info!("Process #{} stack top: {:#x}", pid, stack_top);
