@@ -12,6 +12,7 @@ fn print_help() {
     println!("list       - list available user programs");
     println!("ls [path]  - list filesystem directory");
     println!("cat <path> - print a filesystem file");
+    println!("clear      - clear shell screen");
     println!("ps         - show process status");
     println!("run <path> - spawn a user program from filesystem and wait for it");
     println!("exit       - exit shell");
@@ -89,6 +90,7 @@ fn main() -> isize {
                     println!("usage: cat <path>");
                 }
             }
+            "clear" => print!("\x1b[2J\x1b[H"),
             "ps" | "stat" => sys_stat(),
             "run" => {
                 if let Some(path) = parts.next() {
