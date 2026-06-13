@@ -4,7 +4,7 @@ use hashbrown::HashMap;
 use spin::Mutex;
 use storage::FileHandle;
 
-use crate::drivers::input::try_pop_key;
+use crate::drivers::{input::try_pop_key, vga};
 
 #[derive(Debug, Clone)]
 pub enum StdIO {
@@ -95,11 +95,14 @@ impl Resource {
             Resource::Console(stdio) => match *stdio {
                 StdIO::Stdin => None,
                 StdIO::Stdout => {
-                    print!("{}", String::from_utf8_lossy(buf));
+                    let output = String::from_utf8_lossy(buf);
+                    print!("{}", output);
                     Some(buf.len())
                 }
                 StdIO::Stderr => {
-                    warn!("{}", String::from_utf8_lossy(buf));
+                    let output = String::from_utf8_lossy(buf);
+                    warn!("{}", output);
+                    let _ = vga::write_fmt(format_args!("{}", output));
                     Some(buf.len())
                 }
             },

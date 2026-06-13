@@ -1,6 +1,9 @@
-use core::str;
+use core::{fmt::Write, str};
 
 use log::{LevelFilter, Metadata, Record};
+use x86_64::instructions::interrupts;
+
+use crate::drivers::serial::get_serial;
 
 pub fn init(raw_level: &[u8; 16]) {
     static LOGGER: Logger = Logger;
@@ -46,14 +49,19 @@ impl log::Log for Logger {
     fn log(&self, record: &Record) {
         // FIXME: Implement the logger with serial output
         if self.enabled(record.metadata()) {
-            // 统一日志格式后交给 println!，最终会通过串口输出。
-            println!(
-                "[{}] {}:{} {}",
-                record.level(),
-                record.file_static().unwrap_or("unknown"),
-                record.line().unwrap_or(0),
-                record.args()
-            );
+            interrupts::without_interrupts(|| {
+                if let Some(mut serial) = get_serial() {
+                    writeln!(
+                        serial,
+                        "[{}] {}:{} {}\r",
+                        record.level(),
+                        record.file_static().unwrap_or("unknown"),
+                        record.line().unwrap_or(0),
+                        record.args()
+                    )
+                    .unwrap();
+                }
+            });
         }
     }
 
