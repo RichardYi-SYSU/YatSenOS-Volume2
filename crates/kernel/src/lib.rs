@@ -24,8 +24,8 @@ pub use utils::*;
 pub mod drivers;
 pub use drivers::*;
 
-pub mod memory;
 pub mod interrupt;
+pub mod memory;
 pub mod proc;
 
 pub use alloc::format;
@@ -40,6 +40,7 @@ pub fn init(boot_info: &'static BootInfo) {
     }
 
     serial::init(); // init serial output
+    vga::init(boot_info); // init VGA output when UEFI GOP is available
     logger::init(&boot_info.log_level); // init logger system (之前的lab1加分项实现的内容，被lab2的覆盖掉，故加回来)
     memory::address::init(boot_info);
     memory::gdt::init(); // init gdt
@@ -50,6 +51,7 @@ pub fn init(boot_info: &'static BootInfo) {
     interrupt::init(); // init interrupts
     memory::init(boot_info); // init memory manager
     proc::init(boot_info); // init process manager
+    vga::spawn_clock_thread();
 
     info!("Test stack grow.");
     grow_stack();

@@ -14,6 +14,7 @@ fn spawn_init() -> proc::ProcessId {
 
 pub fn kernel_main(boot_info: &'static boot::BootInfo) -> ! {
     ysos::init(boot_info);
+    drivers::vga::clear_terminal();
     ysos::wait(spawn_init());
     ysos::shutdown();
 }
